@@ -62,6 +62,7 @@ const CONGRESS_DOT_GOV_PHOTO_URL = "https://www.congress.gov/img/member/{bioguid
 const CONGRESSIONAL_PHOTO_OVERRIDES = {
   V000081: ["https://clerk.house.gov/images/members/V000081.jpg"]
 };
+const NJ_LEGISLATURE_PHOTO_BASE = "https://pub.njleg.gov/publications/members/";
 const OPENSTATES_LEGISLATURE_URL =
   "https://api.github.com/repos/openstates/people/contents/data/{state}/legislature?ref=main";
 const OPENSTATES_EXECUTIVE_URL =
@@ -3680,6 +3681,31 @@ function congressionalPhotoUrls(member) {
   ]);
 }
 
+function njLegislaturePhotoUrl(image) {
+  const value = String(image || "").trim();
+  if (!value) return "";
+
+  try {
+    const url = new URL(value);
+    if (!url.hostname.endsWith("njleg.state.nj.us") || !url.pathname.includes("/members/memberphotos/")) return "";
+
+    const filename = decodeURIComponent(url.pathname.split("/").pop() || "");
+    if (!filename) return "";
+    const publicFilename = filename.replace(/(_250)?(\.[a-z0-9]+)$/i, "_250$2");
+    return `${NJ_LEGISLATURE_PHOTO_BASE}${encodeURIComponent(publicFilename)}`;
+  } catch {
+    return "";
+  }
+}
+
+function stateLegislatorPhotoUrls(legislator) {
+  return uniqueTruthy([
+    njLegislaturePhotoUrl(legislator?.image),
+    legislator?.image,
+    legislator?.wikidataImage
+  ]);
+}
+
 function legislatorCard({ label, name, party, district, office, note, image, imageFallbacks = [], fallbackImage, url, links = [], email }) {
   const images = uniqueTruthy([image, ...imageFallbacks, fallbackImage]);
   const displayImage = images[0] || "";
@@ -3957,6 +3983,7 @@ function geographyExtraSection(geoid, profile, extras) {
 
   if (type.id === "stateHouse" || type.id === "stateSenate") {
     const legislator = extras?.stateLegislator;
+    const photos = stateLegislatorPhotoUrls(legislator);
     cards.unshift(
       legislator
         ? legislatorCard({
@@ -3964,8 +3991,8 @@ function geographyExtraSection(geoid, profile, extras) {
             name: legislator.name,
             party: legislator.party,
             district: legislator.currentRole?.district,
-            image: legislator.image,
-            fallbackImage: legislator.wikidataImage,
+            image: photos[0],
+            imageFallbacks: photos.slice(1),
             url: legislator.links?.[0]?.url,
             email: legislator.email
           })
