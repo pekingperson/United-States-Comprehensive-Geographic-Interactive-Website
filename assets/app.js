@@ -1504,8 +1504,11 @@ const STATIC_GOVERNORS = {
   FL: {
     name: "Ron DeSantis",
     party: "Republican",
-    image: "https://commons.wikimedia.org/wiki/Special:FilePath/Ron%20DeSantis%20113th%20Congress.jpg?width=225",
-    imageFallbacks: ["https://commons.wikimedia.org/wiki/Special:FilePath/Ron%20DeSantis%20(53455112690)%20(cropped).png?width=225"]
+    image: "https://commons.wikimedia.org/wiki/Special:FilePath/Ron%20DeSantis%20official%20photo.jpg?width=225",
+    imageFallbacks: [
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Ron%20DeSantis%20113th%20Congress.jpg?width=225",
+      "https://commons.wikimedia.org/wiki/Special:FilePath/Ron%20DeSantis%20(53455112690)%20(cropped).png?width=225"
+    ]
   },
   GA: { name: "Brian Kemp", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/DAZ%201544PS%20(cropped).jpg?width=225" },
   HI: { name: "Josh Green", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Josh%20Green%20Official%20Photo%202022%20(cropped)%20(cropped).jpg?width=225" },
