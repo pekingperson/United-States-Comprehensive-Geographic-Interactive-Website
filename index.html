@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Urban Area Census Dots Map</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.2.1/ol.css">
+    <link rel="stylesheet" href="assets/styles.css?v=20260509-urban-merge-additions">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="map-pane" aria-label="Interactive map">
+        <div id="map"></div>
+        <div id="google-3d-view" class="google-3d-view" hidden></div>
+        <div class="map-title">
+          <h1 id="map-heading">Urban Areas</h1>
+          <p id="map-subtitle">Census Reporter profiles over Census Dots population tiles</p>
+        </div>
+        <div class="map-toolbar" aria-label="Map controls">
+          <label class="map-select-control" for="base-map">
+            <span>Base</span>
+            <select id="base-map">
+              <option value="reporter">Census Reporter</option>
+              <option value="googleSatellite">Google Satellite</option>
+              <option value="google3d">Google 3D</option>
+            </select>
+          </label>
+          <button id="zoom-us" type="button" title="Zoom to the United States">US</button>
+          <button id="toggle-dots" type="button" title="Show or hide Census Dots background">Dots</button>
+          <button id="toggle-areas" type="button" title="Show or hide urban area boundaries">Areas</button>
+        </div>
+        <div id="google-map-status" class="map-status" hidden></div>
+        <div id="dots-legend" class="legend-block map-legend" aria-label="Census Dots legend"></div>
+        <div id="hover-card" class="hover-card" hidden></div>
+      </section>
+
+      <aside class="side-panel" aria-label="Urban area details">
+        <button
+          id="panel-resizer"
+          class="panel-resizer"
+          type="button"
+          aria-label="Resize details panel"
+          title="Drag to resize details panel"
+        ></button>
+        <div class="search-block">
+          <label for="geography-type">Boundary type</label>
+          <select id="geography-type"></select>
+          <label for="opportunity-overlay">Opportunity Atlas overlay</label>
+          <select id="opportunity-overlay"></select>
+          <label for="language-select">Language</label>
+          <select id="language-select"></select>
+          <label for="search">Find an urban area</label>
+          <input id="search" type="search" placeholder="Search by city, state, or code">
+          <div id="search-results" class="area-list search-results" role="list" hidden></div>
+          <div class="meta-row">
+            <span id="area-count">Loading urban areas...</span>
+            <span id="release-label"></span>
+          </div>
+
+          <div id="race-finder" class="race-finder" aria-label="Race and ethnicity move finder">
+            <div class="finder-heading">
+              <h2>Move Finder</h2>
+              <button id="finder-reset" type="button">Reset</button>
+            </div>
+            <label for="finder-sort">Sort urban areas by</label>
+            <select id="finder-sort"></select>
+            <label for="finder-race">Race or ethnicity</label>
+            <select id="finder-race"></select>
+            <div class="finder-row">
+              <label for="finder-min-pop">
+                <span>Minimum population</span>
+                <select id="finder-min-pop"></select>
+              </label>
+              <label for="finder-limit">
+                <span>Results</span>
+                <select id="finder-limit"></select>
+              </label>
+            </div>
+            <p id="finder-summary" class="finder-summary"></p>
+          </div>
+        </div>
+
+        <div id="opportunity-legend" class="legend-block opportunity-legend" aria-label="Opportunity Atlas overlay legend"></div>
+
+        <div id="profile" class="profile">
+          <div class="empty-state">
+            <h2>Select an urban area</h2>
+            <p>Click a boundary on the map or choose one from the list.</p>
+          </div>
+        </div>
+
+        <div class="list-block">
+          <h2 id="list-title">Urban Area Directory</h2>
+          <div id="area-list" class="area-list" role="list"></div>
+        </div>
+      </aside>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/ol@10.2.1/dist/ol.js"></script>
+    <script src="assets/app.js?v=20260509-urban-merge-additions"></script>
+  </body>
+</html>

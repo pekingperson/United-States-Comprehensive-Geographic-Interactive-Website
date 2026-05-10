@@ -1,0 +1,11 @@
+{
+  "name": "united-states-comprehensive-geographic-interactive-website",
+  "version": "1.0.0",
+  "description": "Interactive United States geography viewer combining Census Reporter profiles, Census Dots tiles, Opportunity Atlas overlays, and policy overlays.",
+  "scripts": {
+    "data": "node --use-system-ca scripts/generate-data.mjs && python scripts/apply-urban-merges.py",
+    "merge-urban-areas": "python scripts/apply-urban-merges.py",
+    "start": "node --use-system-ca scripts/serve.mjs 4173",
+    "serve": "node --use-system-ca scripts/serve.mjs 4173"
+  }
+}

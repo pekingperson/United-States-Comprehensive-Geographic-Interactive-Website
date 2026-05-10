@@ -1,0 +1,121 @@
+{
+  "97000US3904702": {
+    "source": "Niche",
+    "sourceUrl": "https://www.niche.com/k12/d/dublin-city-schools-oh/",
+    "rankingsUrl": "https://www.niche.com/k12/d/dublin-city-schools-oh/rankings/",
+    "name": "Dublin City Schools",
+    "districtType": "School District",
+    "location": "Dublin, OH",
+    "overallGrade": "A+",
+    "rating": "4.53 out of 5",
+    "reviewCount": "115 reviews",
+    "headlineRank": "#1 in Best School Districts in Columbus Area",
+    "summary": "Top rated public school district in Dublin, Ohio.",
+    "contact": {
+      "website": "https://www.dublinschools.net/",
+      "phone": "(614) 764-5913",
+      "address": "5175 Emerald Pkwy, Dublin, OH 43017"
+    },
+    "offerings": [
+      "AP offered",
+      "Gifted program offered",
+      "IB offered"
+    ],
+    "grades": [
+      { "label": "Academics", "value": "A" },
+      { "label": "Diversity", "value": "B+" },
+      { "label": "Teachers", "value": "A+" },
+      { "label": "College Prep", "value": "A+" },
+      { "label": "Clubs & Activities", "value": "A" },
+      { "label": "Administration", "value": "A+" },
+      { "label": "Sports", "value": "A" },
+      { "label": "Food", "value": "A" },
+      { "label": "Resources & Facilities", "value": "B" }
+    ],
+    "stats": [
+      { "label": "Students", "value": "16,967" },
+      { "label": "Grades", "value": "PK, K-12" },
+      { "label": "Student-teacher ratio", "value": "18:1" },
+      { "label": "Reading proficiency", "value": "80%" },
+      { "label": "Math proficiency", "value": "75%" },
+      { "label": "Average graduation rate", "value": "93%" },
+      { "label": "Average SAT", "value": "1300", "note": "1,212 responses" },
+      { "label": "Average ACT", "value": "29", "note": "1,116 responses" },
+      { "label": "Free or reduced lunch", "value": "21.5%" },
+      { "label": "Average teacher salary", "value": "$115,533" },
+      { "label": "Teachers in first/second year", "value": "14.1%" },
+      { "label": "Expenses per student", "value": "$16,404" }
+    ],
+    "financeBreakdown": [
+      { "label": "Instruction", "value": 65 },
+      { "label": "Support services", "value": 32 },
+      { "label": "Other", "value": 3 }
+    ],
+    "rankings": [
+      "Districts with the Best Teachers in America: 8 of 11,038",
+      "Best Places to Teach in America: 40 of 11,278",
+      "Best School Districts in America: 128 of 10,394",
+      "Best School Districts for Athletes in America: 680 of 9,934",
+      "Best Places to Teach in Ohio: 2 of 607",
+      "Districts with the Best Teachers in Ohio: 2 of 606",
+      "Best School Districts in Ohio: 4 of 606",
+      "Best School Districts for Athletes in Ohio: 32 of 596",
+      "Most Diverse School Districts in Ohio: 72 of 616",
+      "Best Places to Teach in Columbus Area: 1 of 27",
+      "Best School Districts in Columbus Area: 1 of 27",
+      "Districts with the Best Teachers in Columbus Area: 1 of 27",
+      "Best School Districts for Athletes in Columbus Area: 7 of 26",
+      "Most Diverse School Districts in Columbus Area: 13 of 28",
+      "Best Places to Teach in Franklin County: 1 of 15",
+      "Best School Districts in Franklin County: 1 of 15",
+      "Districts with the Best Teachers in Franklin County: 1 of 15",
+      "Best School Districts for Athletes in Franklin County: 5 of 14",
+      "Most Diverse School Districts in Franklin County: 10 of 16"
+    ],
+    "topSchools": [
+      { "label": "Wyandot Elementary School", "value": "A+" },
+      { "label": "Deer Run Elementary School", "value": "A+" },
+      { "label": "Glacier Ridge Elementary School", "value": "A+", "note": "4.33 out of 5 - 3 reviews" },
+      { "label": "Scottish Corners Elementary School", "value": "A+" },
+      { "label": "Mary Emma Bailey Elementary School", "value": "A+" }
+    ],
+    "popularColleges": [
+      { "label": "The Ohio State University", "value": "A+", "note": "2,230 students interested" },
+      { "label": "Ohio University", "value": "B+", "note": "886 students interested" },
+      { "label": "University of Cincinnati", "value": "A-", "note": "843 students interested" },
+      { "label": "Miami University", "value": "B+", "note": "780 students interested" },
+      { "label": "University of Michigan - Ann Arbor", "value": "A+", "note": "417 students interested" },
+      { "label": "University of Kentucky", "value": "A-", "note": "416 students interested" },
+      { "label": "Michigan State University", "value": "A", "note": "410 students interested" },
+      { "label": "Case Western Reserve University", "value": "A", "note": "340 students interested" },
+      { "label": "New York University", "value": "A+", "note": "313 students interested" },
+      { "label": "University of Chicago", "value": "A+", "note": "267 students interested" }
+    ],
+    "livingArea": {
+      "name": "Dublin",
+      "overallGrade": "A+",
+      "grades": [
+        { "label": "Cost of living", "value": "B-" },
+        { "label": "Good for families", "value": "A+" },
+        { "label": "Housing", "value": "B+" }
+      ],
+      "stats": [
+        { "label": "Median household income", "value": "$160,296", "note": "National $80,734" },
+        { "label": "Median rent", "value": "$1,686", "note": "National $1,413" },
+        { "label": "Median home value", "value": "$563,500", "note": "National $332,700" }
+      ]
+    },
+    "reviewBreakdown": [
+      { "label": "5 star", "value": 73 },
+      { "label": "4 star", "value": 35 },
+      { "label": "3 star", "value": 4 },
+      { "label": "2 star", "value": 1 },
+      { "label": "1 star", "value": 2 }
+    ],
+    "notes": [
+      "State test score figures cited by Niche come from Ohio's 2023-24 statewide testing program.",
+      "Niche rankings are based on U.S. Department of Education statistics and reviews.",
+      "Ratings and rankings are external third-party data and may change outside Census Reporter."
+    ]
+  }
+}
