@@ -25,6 +25,7 @@ const CESIUM_SCRIPT_URL = "https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/
 const CESIUM_CSS_URL = "https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Widgets/widgets.css";
 const BOUNDARY_URL = "data/urban-area-boundaries.json?v=20260510-urban-merge-primary";
 const SCHOOL_RATINGS_URL = "data/school-ratings.json?v=20260510-school-official-data";
+const MASSACHUSETTS_LEGISLATORS_URL = "data/ma-legislators.json?v=20260510-ma-state-house-legislators";
 const SCHOOL_RATINGS_API = HAS_LOCAL_SERVER_PROXY ? "/api/school-ratings" : "";
 const EDUCATION_DATA_API = "https://educationdata.urban.org";
 const STATE_OFFICIALS_API = HAS_LOCAL_SERVER_PROXY ? "/api/state-officials" : "";
@@ -1734,6 +1735,8 @@ const state = {
   congressLoading: null,
   stateOfficialsCache: new Map(),
   stateLegislatorCache: new Map(),
+  massachusettsLegislators: null,
+  massachusettsLegislatorsLoading: null,
   stateExecutiveCache: new Map(),
   municipalityCache: new Map(),
   wikidataImageCache: new Map(),
@@ -2290,7 +2293,7 @@ function styleBoundaryFeature(feature) {
   }
 
   if (type.id === "stateHouse" || type.id === "stateSenate") {
-    const legislator = getCachedStateLegislator(geoid, type);
+    const legislator = getCachedStateLegislator(geoid, type, displayNameFromFeature(feature));
     return partyBoundaryStyles[normalizeParty(legislator?.party)] || partyBoundaryStyles.Other;
   }
 
@@ -5179,19 +5182,46 @@ function normalizeDistrict(value) {
     .toUpperCase();
 }
 
+function normalizeDistrictName(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/^['"]|['"]$/g, "")
+    .replace(/,\s*[A-Z]{2}$/i, "")
+    .replace(/\bDistrict\b/gi, "")
+    .replace(/\b(and|&)\b/gi, " ")
+    .replace(/[-,/]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
+function stateLegislativeDistrictNameCandidates(profileOrName) {
+  const metadata =
+    profileOrName && typeof profileOrName === "object" && !Array.isArray(profileOrName)
+      ? profileOrName.metadata || profileOrName
+      : null;
+  const names = metadata
+    ? [metadata.display_name, metadata.simple_name, metadata.name, metadata.NAME]
+    : [profileOrName];
+
+  return uniqueTruthy(names.map(normalizeDistrictName));
+}
+
 function parseStateGeoid(geoid) {
   const id = String(geoid || "").replace("04000US", "");
   return STATE_FIPS_TO_ABBR[id] || "";
 }
 
-function parseStateLegislativeGeoid(geoid, type = geographyForGeoid(geoid)) {
+function parseStateLegislativeGeoid(geoid, type = geographyForGeoid(geoid), profileOrName = null) {
   const prefix = type.id === "stateHouse" ? "62000US" : "61000US";
   const id = String(geoid || "").replace(prefix, "");
   if (id.length < 3) return null;
   return {
     state: STATE_FIPS_TO_ABBR[id.slice(0, 2)],
     chamber: type.id === "stateHouse" ? "lower" : "upper",
-    district: normalizeDistrict(id.slice(2))
+    district: normalizeDistrict(id.slice(2)),
+    districtNames: stateLegislativeDistrictNameCandidates(profileOrName)
   };
 }
 
@@ -5201,8 +5231,14 @@ function findGovernor(people) {
   );
 }
 
-function findStateLegislator(geoid, type, people) {
-  const parsed = parseStateLegislativeGeoid(geoid, type);
+function stateLegislativeDistrictMatches(roleDistrict, parsed) {
+  if (normalizeDistrict(roleDistrict) === parsed.district) return true;
+  const roleDistrictName = normalizeDistrictName(roleDistrict);
+  return Boolean(roleDistrictName && parsed.districtNames?.includes(roleDistrictName));
+}
+
+function findStateLegislator(geoid, type, people, profileOrName = null) {
+  const parsed = parseStateLegislativeGeoid(geoid, type, profileOrName);
   if (!parsed?.state || !people) return null;
 
   for (const person of people) {
@@ -5210,7 +5246,7 @@ function findStateLegislator(geoid, type, people) {
       (role) =>
         isCurrentRole(role) &&
         role.type === parsed.chamber &&
-        normalizeDistrict(role.district) === parsed.district
+        stateLegislativeDistrictMatches(role.district, parsed)
     );
     if (currentRole) return { ...person, currentRole };
   }
@@ -5218,11 +5254,53 @@ function findStateLegislator(geoid, type, people) {
   return null;
 }
 
-function getCachedStateLegislator(geoid, type = geographyForGeoid(geoid)) {
-  const parsed = parseStateLegislativeGeoid(geoid, type);
+function getCachedStateLegislator(geoid, type = geographyForGeoid(geoid), profileOrName = null) {
+  const parsed = parseStateLegislativeGeoid(geoid, type, profileOrName);
+  const massachusettsLegislator = findMassachusettsLegislator(geoid, type, state.massachusettsLegislators, profileOrName);
+  if (parsed?.state === "MA" && massachusettsLegislator) return massachusettsLegislator;
   const people = parsed?.state ? state.stateLegislatorCache.get(parsed.state.toLowerCase()) : null;
-  if (!Array.isArray(people)) return null;
-  return findStateLegislator(geoid, type, people);
+  const openStatesLegislator = Array.isArray(people) ? findStateLegislator(geoid, type, people, profileOrName) : null;
+  return openStatesLegislator || massachusettsLegislator;
+}
+
+async function loadMassachusettsLegislators() {
+  if (state.massachusettsLegislators) return state.massachusettsLegislators;
+  if (!state.massachusettsLegislatorsLoading) {
+    state.massachusettsLegislatorsLoading = fetchJsonWithRetry(MASSACHUSETTS_LEGISLATORS_URL, { cache: "force-cache" })
+      .then((payload) => {
+        state.massachusettsLegislators = Array.isArray(payload?.members) ? payload.members : [];
+        return state.massachusettsLegislators;
+      })
+      .catch((error) => {
+        state.massachusettsLegislatorsLoading = null;
+        throw error;
+      });
+  }
+  return state.massachusettsLegislatorsLoading;
+}
+
+function findMassachusettsLegislator(geoid, type, members, profileOrName = null) {
+  const parsed = parseStateLegislativeGeoid(geoid, type, profileOrName);
+  if (parsed?.state !== "MA" || !Array.isArray(members)) return null;
+  const chamber = type.id === "stateHouse" ? "lower" : "upper";
+  const member = members.find(
+    (candidate) =>
+      candidate.chamber === chamber &&
+      stateLegislativeDistrictMatches(candidate.district, parsed)
+  );
+  if (!member) return null;
+
+  return {
+    name: member.name,
+    party: member.party,
+    email: member.email,
+    image: member.image,
+    links: member.url ? [{ label: "Official website", url: member.url }] : [],
+    currentRole: {
+      type: chamber,
+      district: member.district
+    }
+  };
 }
 
 function parsePlaceGeoid(geoid) {
@@ -5363,16 +5441,27 @@ async function loadGeographyExtras(geoid, profile) {
   }
 
   if (type.id === "stateHouse" || type.id === "stateSenate") {
-    const parsed = parseStateLegislativeGeoid(geoid, type);
+    const parsed = parseStateLegislativeGeoid(geoid, type, profile);
     if (parsed?.state) {
-      try {
-        const people = await loadStateLegislatorData(parsed.state);
-        extras.stateLegislator = findStateLegislator(geoid, type, people);
-        await attachWikidataImage(extras.stateLegislator);
-        state.boundaryTileLayers.get(type.id)?.changed();
-      } catch (error) {
-        extras.stateLegislatorError = error.message;
+      if (parsed.state === "MA") {
+        try {
+          extras.stateLegislator = findMassachusettsLegislator(geoid, type, await loadMassachusettsLegislators(), profile);
+        } catch (error) {
+          extras.stateLegislatorError = [extras.stateLegislatorError, error.message].filter(Boolean).join("; ");
+        }
       }
+
+      if (!extras.stateLegislator) {
+        try {
+          const people = await loadStateLegislatorData(parsed.state);
+          extras.stateLegislator = findStateLegislator(geoid, type, people, profile);
+        } catch (error) {
+          extras.stateLegislatorError = [extras.stateLegislatorError, error.message].filter(Boolean).join("; ");
+        }
+      }
+
+      await attachWikidataImage(extras.stateLegislator);
+      state.boundaryTileLayers.get(type.id)?.changed();
     }
   }
 
