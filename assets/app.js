@@ -59,6 +59,9 @@ const CONGRESS_LEGISLATORS_URL =
 const CONGRESS_PHOTO_URL = "https://unitedstates.github.io/images/congress/225x275/{bioguide}.jpg";
 const BIOGUIDE_PHOTO_URL = "https://bioguide.congress.gov/bioguide/photo/{initial}/{bioguide}.jpg";
 const CONGRESS_DOT_GOV_PHOTO_URL = "https://www.congress.gov/img/member/{bioguideLower}_200.jpg";
+const CONGRESSIONAL_PHOTO_OVERRIDES = {
+  V000081: ["https://clerk.house.gov/images/members/V000081.jpg"]
+};
 const OPENSTATES_LEGISLATURE_URL =
   "https://api.github.com/repos/openstates/people/contents/data/{state}/legislature?ref=main";
 const OPENSTATES_EXECUTIVE_URL =
@@ -3669,6 +3672,7 @@ function legacyCongressPhotoUrl(bioguide) {
 function congressionalPhotoUrls(member) {
   const bioguide = member?.id?.bioguide;
   return uniqueTruthy([
+    ...(CONGRESSIONAL_PHOTO_OVERRIDES[bioguide] || []),
     bioguidePhotoUrl(bioguide),
     congressDotGovPhotoUrl(bioguide),
     legacyCongressPhotoUrl(bioguide),
