@@ -1628,7 +1628,7 @@ const STATIC_LIEUTENANT_GOVERNORS = {
 
 const LIEUTENANT_GOVERNOR_OFFICIAL_URLS = {
   AL: "https://ltgov.alabama.gov/about/",
-  AK: "https://ltgov.alaska.gov/meyer/",
+  AK: "https://ltgov.alaska.gov/meet-lt-governor-nancy-dahlstrom/",
   AZ: "https://azsos.gov/adrian-fontes",
   AR: "https://ltgovernor.arkansas.gov/meet-leslie-rutledge/",
   CA: "https://ltg.ca.gov/about/",
@@ -1637,7 +1637,7 @@ const LIEUTENANT_GOVERNOR_OFFICIAL_URLS = {
   DE: "https://ltgov.delaware.gov/meet-the-lieutenant-governor/",
   FL: "https://www.flgov.com/eog/leadership/people/jay-collins",
   GA: "https://ltgov.georgia.gov/burt-jones",
-  HI: "https://ags.hawaii.gov/blog/main/governor-green-names-keith-regan-as-acting-lieutenant-governor/",
+  HI: "https://portal.ehawaii.gov/government/state-officials/",
   ID: "https://lgo.idaho.gov/about/",
   IL: "https://ltgov.illinois.gov/about.html",
   IN: "https://secure.in.gov/lg/",
@@ -1667,7 +1667,7 @@ const LIEUTENANT_GOVERNOR_OFFICIAL_URLS = {
   PA: "https://www.pa.gov/ltgovernor/lt-governor-austin-davis",
   RI: "https://ltgov.ri.gov/about",
   SC: "https://www.governor.sc.gov/lieutenant-governor",
-  SD: "https://news.sd.gov/news?id=news_kb_article_view&sys_id=5e24cc5b979b92507fc1b480f053af17",
+  SD: "https://www.sd.gov/governor/",
   TN: "https://wapp.capitol.tn.gov/apps/legislatorinfo/speaker?chamber=S",
   TX: "https://www.ltgov.texas.gov/about/",
   UT: "https://ltgovernor.utah.gov/about-lt-governor-deidre-m-henderson/",
@@ -3602,10 +3602,11 @@ function congressionalPhotoUrls(member) {
   ]);
 }
 
-function legislatorCard({ label, name, party, district, office, note, image, imageFallbacks = [], fallbackImage, url, email }) {
+function legislatorCard({ label, name, party, district, office, note, image, imageFallbacks = [], fallbackImage, url, links = [], email }) {
   const images = uniqueTruthy([image, ...imageFallbacks, fallbackImage]);
   const displayImage = images[0] || "";
   const hasImage = Boolean(displayImage);
+  const cardLinks = mergeLinks(links, url ? [{ label: "Official website", url }] : []);
   const noteParts = [
     party || "Party not available",
     office,
@@ -3620,7 +3621,7 @@ function legislatorCard({ label, name, party, district, office, note, image, ima
         <span class="stat-label">${escapeHtml(tr(label))}</span>
         <span class="stat-value">${escapeHtml(name || tr("Not available"))}</span>
         <span class="stat-note">${escapeHtml(noteParts.join(" - "))}</span>
-        ${url ? `<a href="${url}" target="_blank" rel="noreferrer">${escapeHtml(tr("Official website"))}</a>` : ""}
+        ${cardLinks.map((link) => `<a href="${escapeHtml(link.url)}" target="_blank" rel="noreferrer">${escapeHtml(tr(link.label || "Official website"))}</a>`).join("")}
         ${email ? `<a href="mailto:${email}">${escapeHtml(email)}</a>` : ""}
       </div>
     </article>
@@ -3818,7 +3819,7 @@ function geographyExtraSection(geoid, profile, extras) {
           image: lieutenantGovernor.image,
           imageFallbacks: lieutenantGovernor.imageFallbacks || [],
           fallbackImage: lieutenantGovernor.wikidataImage,
-          url: lieutenantGovernor.links?.[0]?.url,
+          links: lieutenantGovernor.links || [],
           email: lieutenantGovernor.email
         })
       );
@@ -3834,7 +3835,7 @@ function geographyExtraSection(geoid, profile, extras) {
           image: governor.image,
           imageFallbacks: governor.imageFallbacks || [],
           fallbackImage: governor.wikidataImage,
-          url: governor.links?.[0]?.url,
+          links: governor.links || [],
           email: governor.email
         })
       );
