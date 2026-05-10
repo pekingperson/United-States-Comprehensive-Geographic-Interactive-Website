@@ -1400,6 +1400,27 @@ const GEOGRAPHY_TYPES = [
 
 const GEOGRAPHY_BY_ID = Object.fromEntries(GEOGRAPHY_TYPES.map((type) => [type.id, type]));
 const GEOGRAPHY_BY_SUMLEVEL = Object.fromEntries(GEOGRAPHY_TYPES.map((type) => [type.sumlevel, type]));
+const APP_VARIANT = document.body?.dataset?.appVariant || "full";
+const IS_POLITICAL_VARIANT = APP_VARIANT === "political";
+const POLITICAL_GEOGRAPHY_IDS = new Set(["congressional", "stateHouse", "stateSenate"]);
+
+function defaultGeographyId() {
+  return IS_POLITICAL_VARIANT ? "congressional" : "urban";
+}
+
+function isGeographyAllowed(type) {
+  return !IS_POLITICAL_VARIANT || POLITICAL_GEOGRAPHY_IDS.has(type?.id);
+}
+
+function geographyById(id) {
+  const type = GEOGRAPHY_BY_ID[id] || GEOGRAPHY_BY_ID[defaultGeographyId()];
+  return isGeographyAllowed(type) ? type : GEOGRAPHY_BY_ID[defaultGeographyId()];
+}
+
+function availableGeographyTypes() {
+  if (!IS_POLITICAL_VARIANT) return GEOGRAPHY_TYPES;
+  return ["congressional", "stateHouse", "stateSenate"].map((id) => GEOGRAPHY_BY_ID[id]);
+}
 const STATE_FIPS_TO_ABBR = {
   "01": "AL",
   "02": "AK",
@@ -1693,7 +1714,7 @@ const LIEUTENANT_GOVERNOR_OFFICIAL_URLS = {
 const state = {
   index: null,
   boundaryGeojson: null,
-  activeGeography: "urban",
+  activeGeography: defaultGeographyId(),
   boundaryTileLayers: new Map(),
   activeBoundaryLayer: null,
   selectedGeoid: null,
@@ -2100,8 +2121,9 @@ const map = new ol.Map({
 
 window.urbanAreaApp = {
   map,
-  geographyTypes: GEOGRAPHY_TYPES,
-  opportunityOverlays: OPPORTUNITY_OVERLAYS,
+  variant: APP_VARIANT,
+  geographyTypes: availableGeographyTypes(),
+  opportunityOverlays: IS_POLITICAL_VARIANT ? [] : OPPORTUNITY_OVERLAYS,
   electionOverlays: ELECTION_OVERLAYS,
   policyOverlays: () => policyOverlays(),
   layers: {
@@ -2222,7 +2244,7 @@ function initializePanelResize() {
 }
 
 function activeGeography() {
-  return GEOGRAPHY_BY_ID[state.activeGeography] || GEOGRAPHY_BY_ID.urban;
+  return geographyById(state.activeGeography);
 }
 
 function geographyForGeoid(geoid) {
@@ -2285,7 +2307,7 @@ function boundaryTileLayerFor(type) {
 
   const layer = new ol.layer.VectorTile({
     source,
-    minZoom: type.minZoom,
+    minZoom: IS_POLITICAL_VARIANT && type.id === "congressional" ? 3 : type.minZoom,
     renderBuffer: 64,
     updateWhileAnimating: false,
     updateWhileInteracting: false,
@@ -2304,6 +2326,7 @@ function visibleBoundaryLayer() {
 }
 
 function normalizedBaseMap(id) {
+  if (IS_POLITICAL_VARIANT) return "reporter";
   return ["reporter", "googleSatellite", "google3d"].includes(id) ? id : "reporter";
 }
 
@@ -2598,14 +2621,22 @@ function populationDensity(metadata = {}, metrics = {}, indexArea = null) {
 }
 
 function activeOpportunityOverlay() {
+  if (IS_POLITICAL_VARIANT) return null;
   return OPPORTUNITY_BY_ID[state.opportunityOverlay] || state.policyOverlayById.get(state.opportunityOverlay) || null;
 }
 
 function policyOverlays() {
+  if (IS_POLITICAL_VARIANT) return [];
   return Array.isArray(state.policyOverlayCatalog?.overlays) ? state.policyOverlayCatalog.overlays : [];
 }
 
 async function loadPolicyOverlayCatalog() {
+  if (IS_POLITICAL_VARIANT) {
+    state.policyOverlayCatalog = { overlays: [] };
+    state.policyOverlayById = new Map();
+    window.urbanAreaApp.opportunityOverlays = [];
+    return state.policyOverlayCatalog;
+  }
   const catalog = await fetchJsonWithRetry(POLICY_OVERLAY_URL, { cache: "force-cache" }, 2);
   const overlays = Array.isArray(catalog?.overlays) ? catalog.overlays : [];
   state.policyOverlayCatalog = { ...catalog, overlays };
@@ -3269,6 +3300,12 @@ async function getOpportunityData(overlay) {
 }
 
 function updateOpportunityLayerVisibility() {
+  if (IS_POLITICAL_VARIANT) {
+    opportunityCountyLayer.setVisible(false);
+    opportunityTractLayer.setVisible(false);
+    opportunityStateLayer.setVisible(false);
+    return;
+  }
   const data = state.opportunityData;
   const visible = Boolean(activeOpportunityOverlay() && data);
   opportunityCountyLayer.setVisible(visible && data.lookup.cty.size > 0);
@@ -3354,6 +3391,16 @@ function renderOpportunityLegend(status = "idle", message = "") {
 }
 
 async function setOpportunityOverlay(id) {
+  if (IS_POLITICAL_VARIANT) {
+    state.opportunityOverlay = "none";
+    state.opportunityData = null;
+    state.opportunityStyleCache.clear();
+    updateOpportunityLayerVisibility();
+    if (elements.opportunity) elements.opportunity.value = "none";
+    renderOpportunityLegend();
+    if (!state.selectedGeoid) renderHomeProfile();
+    return;
+  }
   const overlay = OPPORTUNITY_BY_ID[id] || state.policyOverlayById.get(id) || null;
   state.opportunityOverlay = overlay?.id || "none";
   state.opportunityData = null;
@@ -5660,6 +5707,12 @@ function renderHomeProfile() {
   const release = state.index?.release?.name || "Census Reporter latest ACS";
   const boundaryStatus = state.areasVisible ? tr("Visible") : tr("Hidden");
   const dotsStatus = state.dotsVisible ? tr("Visible") : tr("Hidden");
+  const overlayStat = IS_POLITICAL_VARIANT
+    ? ""
+    : stat("Opportunity overlay", escapeHtml(overlayLabel), state.opportunityOverlay === "none" ? tr("Off") : tr("Active"));
+  const homeHelp = IS_POLITICAL_VARIANT
+    ? tr("Use the search, directory, map boundaries, or election map to open a political profile.")
+    : tr("Use the search, directory, map boundaries, or Move Finder to open a geography profile.");
 
   elements.profile.innerHTML = `
     <div class="profile-header home-profile">
@@ -5667,7 +5720,7 @@ function renderHomeProfile() {
       <p class="profile-subtitle">${escapeHtml(translatedTypeLabel(type))} - ${escapeHtml(release)}</p>
       <div class="headline-grid">
         ${stat("Boundary type", escapeHtml(translatedTypeLabel(type)), tr("None selected"))}
-        ${stat("Opportunity overlay", escapeHtml(overlayLabel), state.opportunityOverlay === "none" ? tr("Off") : tr("Active"))}
+        ${overlayStat}
       </div>
     </div>
     <section class="section">
@@ -5677,7 +5730,7 @@ function renderHomeProfile() {
         ${stat(type.local ? "Urban area boundaries" : "Boundaries", escapeHtml(boundaryStatus))}
       </div>
     </section>
-    <p class="source-note">${escapeHtml(tr("Use the search, directory, map boundaries, or Move Finder to open a geography profile."))}</p>
+    <p class="source-note">${escapeHtml(homeHelp)}</p>
   `;
 }
 
@@ -5726,6 +5779,11 @@ function deselectArea(options = {}) {
 
 async function selectArea(geoid, options = {}) {
   const type = geographyForGeoid(geoid);
+  if (!isGeographyAllowed(type)) {
+    window.history.replaceState(null, "", pageUrlWithoutHash());
+    deselectArea({ skipHash: true });
+    return;
+  }
   if (type.id !== state.activeGeography) {
     setActiveGeography(type.id, { keepSelection: true });
   }
@@ -6030,6 +6088,13 @@ function updateFinderControls() {
   const type = activeGeography();
   const translatedLabel = translatedTypeLabel(type);
   const translatedPlural = translatedTypePlural(type);
+  if (IS_POLITICAL_VARIANT) {
+    elements.finder.hidden = true;
+    state.finderSort = "directory";
+    elements.search.placeholder = tr("Search {plural} by name or code", { plural: translatedPlural });
+    elements.search.previousElementSibling.textContent = tr("Find a {type}", { type: lowerUiText(translatedLabel) });
+    return;
+  }
   elements.finder.hidden = false;
   elements.finderSort.value = state.finderSort;
   elements.finderRace.value = state.finderRace;
@@ -6174,12 +6239,18 @@ function renderList() {
 }
 
 function populateGeographySelect() {
-  elements.geography.innerHTML = GEOGRAPHY_TYPES.map(
+  elements.geography.innerHTML = availableGeographyTypes().map(
     (type) => `<option value="${type.id}">${escapeHtml(translatedTypeLabel(type))}</option>`
   ).join("");
+  elements.geography.value = activeGeography().id;
 }
 
 function populateOpportunitySelect() {
+  if (IS_POLITICAL_VARIANT) {
+    elements.opportunity.innerHTML = '<option value="none">Off</option>';
+    elements.opportunity.value = "none";
+    return;
+  }
   const options = ['<option value="none">Off</option>'];
   for (const type of ["outcome", "characteristic"]) {
     const label = type === "outcome" ? "Outcomes" : "Neighborhood characteristics";
@@ -6280,7 +6351,7 @@ function renderLegend() {
 function applyLanguageChrome() {
   document.documentElement.lang = languageConfig().code;
   document.documentElement.dir = RTL_LANGUAGES.has(state.language) ? "rtl" : "ltr";
-  document.title = tr("Urban Area Census Dots Map");
+  document.title = IS_POLITICAL_VARIANT ? tr("Political District Census Dots Map") : tr("Urban Area Census Dots Map");
   elements.language.value = state.language;
   document.querySelector('label[for="geography-type"]').textContent = tr("Boundary type");
   document.querySelector('label[for="opportunity-overlay"]').textContent = tr("Opportunity Atlas overlay");
@@ -6351,7 +6422,7 @@ function setLanguage(code) {
 }
 
 function setActiveGeography(id, options = {}) {
-  const next = GEOGRAPHY_BY_ID[id] || GEOGRAPHY_BY_ID.urban;
+  const next = geographyById(id);
   const previousLayer = visibleBoundaryLayer();
 
   state.activeGeography = next.id;
@@ -6541,21 +6612,28 @@ window.addEventListener("resize", () => {
 
 async function init() {
   if (!LANGUAGES.some((language) => language.code === state.language)) state.language = "en";
+  state.activeGeography = geographyById(state.activeGeography).id;
   state.baseMap = normalizedBaseMap(state.baseMap);
   state.finderSort = validFinderSort(state.finderSort);
   state.finderRace = validFinderRace(state.finderRace);
   state.finderMinPopulation = validFinderMinPopulation(state.finderMinPopulation);
   state.finderLimit = validFinderLimit(state.finderLimit);
+  if (IS_POLITICAL_VARIANT) {
+    state.opportunityOverlay = "none";
+    state.finderSort = "directory";
+  }
   if (!ELECTION_BY_ID[state.electionOverlay]) state.electionOverlay = "none";
   initializePanelResize();
   elements.baseMap.value = state.baseMap;
   populateGeographySelect();
   populateLanguageSelect();
   populateFinderControls();
-  try {
-    await loadPolicyOverlayCatalog();
-  } catch (error) {
-    console.warn("Policy overlay catalog failed to load", error);
+  if (!IS_POLITICAL_VARIANT) {
+    try {
+      await loadPolicyOverlayCatalog();
+    } catch (error) {
+      console.warn("Policy overlay catalog failed to load", error);
+    }
   }
   populateOpportunitySelect();
   populateElectionSelect();
@@ -6570,8 +6648,9 @@ async function init() {
 
   state.index = await fetchJsonWithRetry("data/urban-areas.json?v=20260510-urban-merge-primary", { cache: "force-cache" });
 
-  updateGeographyChrome();
-  setTimeout(loadBoundaryOverlay, 0);
+  if (IS_POLITICAL_VARIANT) setActiveGeography(state.activeGeography, { keepSelection: true });
+  else updateGeographyChrome();
+  if (activeGeography().local) setTimeout(loadBoundaryOverlay, 0);
 
   const match = window.location.hash.match(/^#profile\/(\d{5}US[A-Za-z0-9]*)$/);
   if (match) selectArea(match[1], { skipHash: true, fit: true });
