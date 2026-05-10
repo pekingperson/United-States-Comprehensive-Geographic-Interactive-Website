@@ -23,7 +23,7 @@ const GOOGLE_SATELLITE_TILE = HAS_LOCAL_SERVER_PROXY ? "/proxy/google-satellite/
 const GOOGLE_3D_ROOT = "https://tile.googleapis.com/v1/3dtiles/root.json?key={key}";
 const CESIUM_SCRIPT_URL = "https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Cesium.js";
 const CESIUM_CSS_URL = "https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Widgets/widgets.css";
-const BOUNDARY_URL = "data/urban-area-boundaries.json?v=20260509-louisville-name";
+const BOUNDARY_URL = "data/urban-area-boundaries.json?v=20260510-urban-merge-primary";
 const SCHOOL_RATINGS_URL = "data/school-ratings.json?v=20260510-school-official-data";
 const SCHOOL_RATINGS_API = HAS_LOCAL_SERVER_PROXY ? "/api/school-ratings" : "";
 const EDUCATION_DATA_API = "https://educationdata.urban.org";
@@ -3462,6 +3462,22 @@ function buildMetrics(data) {
   };
 }
 
+function missingMetric(value) {
+  return value == null || (typeof value === "number" && Number.isNaN(value));
+}
+
+function mergeMissingMetrics(base = {}, fallback = {}) {
+  const merged = { ...base };
+  for (const [key, value] of Object.entries(fallback || {})) {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      merged[key] = mergeMissingMetrics(merged[key] || {}, value);
+    } else if (missingMetric(merged[key]) && !missingMetric(value)) {
+      merged[key] = value;
+    }
+  }
+  return merged;
+}
+
 function stat(label, value, note = "") {
   return `
     <article class="stat-card">
@@ -3977,6 +3993,22 @@ function localUrbanProfile(geoid, area) {
   };
 }
 
+function primaryUrbanProfileGeoid(area) {
+  return area?.primaryGeoid || area?.componentGeoids?.[0] || null;
+}
+
+function primaryUrbanProfileName(area) {
+  return area?.primaryName || area?.componentNames?.[0] || area?.name || "";
+}
+
+function censusReporterProfileUrl(geoid, name) {
+  const slug = String(name || geoid)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return `https://censusreporter.org/profiles/${geoid}${slug ? `-${slug}` : ""}/`;
+}
+
 function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -4066,6 +4098,21 @@ async function loadProfile(geoid) {
   const indexArea = areaByGeoid(geoid);
   if (indexArea?.isMergedUrbanArea) {
     const profile = localUrbanProfile(geoid, indexArea);
+    const primaryGeoid = primaryUrbanProfileGeoid(indexArea);
+    if (primaryGeoid) {
+      try {
+        const primaryDetail = await fetchDetailTables(primaryGeoid);
+        const primaryMetrics = buildMetrics(primaryDetail.data?.[primaryGeoid] || {});
+        profile.metrics = mergeMissingMetrics(profile.metrics, primaryMetrics);
+        profile.primaryCensusReporter = {
+          geoid: primaryGeoid,
+          name: primaryUrbanProfileName(indexArea),
+          detail: primaryDetail
+        };
+      } catch (error) {
+        console.warn("Merged urban area primary profile failed to load", error);
+      }
+    }
     state.profileCache.set(geoid, profile);
     return profile;
   }
@@ -5468,14 +5515,14 @@ function renderProfile(geoid, profile, extras = {}) {
   const density = populationDensity(metadata, metrics, indexArea);
   const population = numericValue(metrics.population ?? metadata.population);
   const release = profile.detail.release?.name || state.index.release?.name || "Census Reporter latest ACS";
-  const slug = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-  const crUrl = `https://censusreporter.org/profiles/${geoid}-${slug}/`;
+  const crProfileGeoid = isMergedUrbanArea ? primaryUrbanProfileGeoid(indexArea) || geoid : geoid;
+  const crProfileName = isMergedUrbanArea ? primaryUrbanProfileName(indexArea) || name : name;
+  const crUrl = censusReporterProfileUrl(crProfileGeoid, crProfileName);
   const profileActions = isMergedUrbanArea
     ? `
         <button id="fit-selected" type="button">${escapeHtml(tr("Fit on map"))}</button>
+        <button id="show-full-profile" type="button">${escapeHtml(tr("Full profile and charts"))}</button>
+        <a href="${crUrl}" target="_blank" rel="noreferrer">${escapeHtml(tr("Open Census Reporter"))}</a>
       `
     : `
         <button id="fit-selected" type="button">${escapeHtml(tr("Fit on map"))}</button>
@@ -5493,17 +5540,18 @@ function renderProfile(geoid, profile, extras = {}) {
     `
     : "";
   const sourceNote = isMergedUrbanArea
-    ? tr("This merged urban area is calculated locally by combining the listed Census/TIGER urban areas. Metrics are population-weighted where exact combined medians are not available.")
+    ? tr("This merged urban area is calculated locally by combining the listed Census/TIGER urban areas. Metrics are population-weighted where exact combined medians are not available. Missing detail fields and the embedded Census Reporter page use the largest component urban area.")
     : tr("Data comes from Census Reporter and the U.S. Census Bureau. The dot-density base map is served by Census Dots.");
-  const fullProfileSection = isMergedUrbanArea
-    ? ""
-    : `
+  const fullProfileTitle = isMergedUrbanArea
+    ? tr("Full Census Reporter profile for largest component")
+    : tr("Full Census Reporter profile");
+  const fullProfileSection = `
       <section class="section full-profile-section">
-        <h3>${escapeHtml(tr("Full Census Reporter profile"))}</h3>
+        <h3>${escapeHtml(fullProfileTitle)}</h3>
         <iframe
           class="full-profile-frame"
           src="${crUrl}"
-          title="Full Census Reporter profile for ${escapeHtml(name)}"
+          title="Full Census Reporter profile for ${escapeHtml(crProfileName || name)}"
           loading="lazy"
         ></iframe>
       </section>
@@ -6500,7 +6548,7 @@ async function init() {
     setGoogleMapStatus(`Google map view failed. ${error.message}`);
   });
 
-  state.index = await fetchJsonWithRetry("data/urban-areas.json?v=20260509-louisville-name", { cache: "force-cache" });
+  state.index = await fetchJsonWithRetry("data/urban-areas.json?v=20260510-urban-merge-primary", { cache: "force-cache" });
 
   updateGeographyChrome();
   setTimeout(loadBoundaryOverlay, 0);

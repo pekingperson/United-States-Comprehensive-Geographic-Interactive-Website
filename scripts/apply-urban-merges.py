@@ -24,7 +24,7 @@ MERGE_GROUPS = [
     {
         "geoid": "40000USBA001",
         "tigerGeoid": "BA001",
-        "name": "Bay Area Urban Area",
+        "name": "San Francisco Urban Area",
         "components": [
             "40000US78904",  # San Francisco--Oakland
             "40000US79039",  # San Jose
@@ -32,6 +32,17 @@ MERGE_GROUPS = [
             "40000US50533",  # Livermore--Pleasanton--Dublin
             "40000US90028",  # Vallejo
             "40000US02683",  # Antioch
+        ],
+    },
+    {
+        "geoid": "40000US63217",
+        "tigerGeoid": "63217",
+        "name": "New York Urban Area",
+        "components": [
+            "40000US63217",  # New York--Jersey City--Newark
+            "40000US75313",  # Riverhead
+            "40000US25658",  # East Hampton North
+            "40000US58420",  # Montauk
         ],
     },
     {
@@ -211,6 +222,10 @@ def merge_center(areas):
     return [round(weighted_lon / total, 7), round(weighted_lat / total, 7)]
 
 
+def primary_area(areas):
+    return max(areas, key=lambda area: area.get("metrics", {}).get("population") or 0)
+
+
 def combine_geometry(features):
     geometries = [feature.get("geometry") for feature in features if feature.get("geometry")]
     if not geometries:
@@ -235,6 +250,75 @@ def combine_geometry(features):
     return {"type": "MultiPolygon", "coordinates": polygons}
 
 
+def merged_area_from_components(group, components):
+    land = sum((area.get("landSquareMiles") or 0) for area in components)
+    metrics = merge_metrics(components)
+    population = metrics.get("population")
+    primary = primary_area(components)
+    aliases = []
+    for area in components:
+        aliases.extend([area.get("name"), area.get("tigerName"), simple_urban_name(area.get("name"))])
+
+    return {
+        "geoid": group["geoid"],
+        "tigerGeoid": group["tigerGeoid"],
+        "name": group["name"],
+        "tigerName": group["name"],
+        "center": merge_center(components),
+        "landSquareMiles": round_or_none(land, 1),
+        "density": round_or_none(population / land if population and land else None, 1),
+        "metrics": metrics,
+        "hasCensusReporterData": False,
+        "isMergedUrbanArea": True,
+        "componentGeoids": group["components"],
+        "componentNames": [area["name"] for area in components],
+        "primaryGeoid": primary.get("geoid"),
+        "primaryName": primary.get("name"),
+        "aliases": sorted({alias for alias in aliases if alias}),
+    }
+
+
+def update_existing_merged_area(group, area):
+    updated = deepcopy(area)
+    updated["name"] = group["name"]
+    updated["tigerName"] = group["name"]
+    updated["isMergedUrbanArea"] = True
+    updated["hasCensusReporterData"] = False
+    updated["componentGeoids"] = group["components"]
+    updated.setdefault("primaryGeoid", group["components"][0])
+    updated.setdefault("primaryName", (updated.get("componentNames") or [updated.get("name")])[0])
+    updated.setdefault("componentNames", [])
+    updated.setdefault("aliases", [])
+    updated["aliases"] = sorted({*updated["aliases"], area.get("name"), area.get("tigerName"), group["name"]})
+    return updated
+
+
+def merged_feature_from_components(group, component_features):
+    geometry = combine_geometry(component_features)
+    if not geometry:
+        return None
+    return {
+        "type": "Feature",
+        "geometry": geometry,
+        "properties": {
+            "GEOID": group["tigerGeoid"],
+            "NAME": group["name"],
+            "full_geoid": group["geoid"],
+            "COMPONENT_GEOIDS": ",".join(group["components"]),
+        },
+    }
+
+
+def update_existing_merged_feature(group, feature):
+    updated = deepcopy(feature)
+    updated.setdefault("properties", {})
+    updated["properties"]["GEOID"] = group["tigerGeoid"]
+    updated["properties"]["NAME"] = group["name"]
+    updated["properties"]["full_geoid"] = group["geoid"]
+    updated["properties"]["COMPONENT_GEOIDS"] = ",".join(group["components"])
+    return updated
+
+
 def main():
     areas_payload = json.loads(AREAS_PATH.read_text(encoding="utf-8"))
     boundaries = json.loads(BOUNDARIES_PATH.read_text(encoding="utf-8"))
@@ -244,66 +328,42 @@ def main():
         for feature in boundaries.get("features", [])
     }
 
-    component_geoids = {geoid for group in MERGE_GROUPS for geoid in group["components"]}
-    if all(group["geoid"] in areas_by_geoid for group in MERGE_GROUPS) and not any(
-        geoid in areas_by_geoid for geoid in component_geoids
-    ):
-        if apply_display_names(areas_payload, boundaries):
-            AREAS_PATH.write_text(json.dumps(areas_payload, separators=(",", ":")) + "\n", encoding="utf-8")
-            BOUNDARIES_PATH.write_text(json.dumps(boundaries, separators=(",", ":")) + "\n", encoding="utf-8")
-            print("Urban-area display names updated")
-        else:
-            print("Urban-area merges are already applied")
-        return
-
     merged_areas = []
     merged_features = []
+    consumed_component_geoids = set()
+    generated_merge_geoids = set()
 
     for group in MERGE_GROUPS:
-        components = [areas_by_geoid[geoid] for geoid in group["components"]]
-        component_features = [features_by_geoid[geoid] for geoid in group["components"] if geoid in features_by_geoid]
-        land = sum((area.get("landSquareMiles") or 0) for area in components)
-        metrics = merge_metrics(components)
-        population = metrics.get("population")
-        aliases = []
-        for area in components:
-            aliases.extend([area.get("name"), area.get("tigerName"), simple_urban_name(area.get("name"))])
+        components = [areas_by_geoid[geoid] for geoid in group["components"] if geoid in areas_by_geoid]
+        all_components_available = len(components) == len(group["components"])
 
-        merged_area = {
-            "geoid": group["geoid"],
-            "tigerGeoid": group["tigerGeoid"],
-            "name": group["name"],
-            "tigerName": group["name"],
-            "center": merge_center(components),
-            "landSquareMiles": round_or_none(land, 1),
-            "density": round_or_none(population / land if population and land else None, 1),
-            "metrics": metrics,
-            "hasCensusReporterData": False,
-            "isMergedUrbanArea": True,
-            "componentGeoids": group["components"],
-            "componentNames": [area["name"] for area in components],
-            "aliases": sorted({alias for alias in aliases if alias}),
-        }
-        merged_areas.append(merged_area)
+        if all_components_available:
+            component_features = [
+                features_by_geoid[geoid] for geoid in group["components"] if geoid in features_by_geoid
+            ]
+            merged_areas.append(merged_area_from_components(group, components))
+            merged_feature = merged_feature_from_components(group, component_features)
+            if merged_feature:
+                merged_features.append(merged_feature)
+            consumed_component_geoids.update(group["components"])
+            generated_merge_geoids.add(group["geoid"])
+            continue
 
-        geometry = combine_geometry(component_features)
-        if geometry:
-            merged_features.append(
-                {
-                    "type": "Feature",
-                    "geometry": geometry,
-                    "properties": {
-                        "GEOID": group["tigerGeoid"],
-                        "NAME": group["name"],
-                        "full_geoid": group["geoid"],
-                        "COMPONENT_GEOIDS": ",".join(group["components"]),
-                    },
-                }
-            )
+        existing_area = areas_by_geoid.get(group["geoid"])
+        if existing_area:
+            merged_areas.append(update_existing_merged_area(group, existing_area))
+            existing_feature = features_by_geoid.get(group["geoid"])
+            if existing_feature:
+                merged_features.append(update_existing_merged_feature(group, existing_feature))
+            generated_merge_geoids.add(group["geoid"])
+            continue
+
+        missing = ", ".join(geoid for geoid in group["components"] if geoid not in areas_by_geoid)
+        raise KeyError(f"Cannot build {group['name']}; missing component urban areas: {missing}")
 
     renamed_areas = []
     for area in areas_payload["areas"]:
-        if area["geoid"] in component_geoids:
+        if area["geoid"] in consumed_component_geoids or area["geoid"] in generated_merge_geoids:
             continue
         renamed = deepcopy(area)
         renamed["originalName"] = area.get("name")
@@ -330,7 +390,8 @@ def main():
     filtered_features = [
         feature
         for feature in boundaries.get("features", [])
-        if f"40000US{feature.get('properties', {}).get('GEOID')}" not in component_geoids
+        if f"40000US{feature.get('properties', {}).get('GEOID')}" not in consumed_component_geoids
+        and f"40000US{feature.get('properties', {}).get('GEOID')}" not in generated_merge_geoids
     ]
     for feature in filtered_features:
         geoid = f"40000US{feature.get('properties', {}).get('GEOID')}"
