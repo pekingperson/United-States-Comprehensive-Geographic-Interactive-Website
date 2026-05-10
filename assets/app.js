@@ -26,7 +26,7 @@ const CESIUM_CSS_URL = "https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Bui
 const BOUNDARY_URL = "data/urban-area-boundaries.json?v=20260509-louisville-name";
 const SCHOOL_RATINGS_URL = "data/school-ratings.json?v=20260509-school-rich";
 const SCHOOL_RATINGS_API = "/api/school-ratings";
-const STATE_OFFICIALS_API = "/api/state-officials";
+const STATE_OFFICIALS_API = HAS_LOCAL_SERVER_PROXY ? "/api/state-officials" : "";
 const MAYOR_PARTY_API = "/api/mayor-party";
 const DOT_TILE_SIZE = 256;
 const DOT_TILE_PIXEL_RATIO = 2;
@@ -1490,6 +1490,69 @@ const STATE_ABBR_TO_NAME = {
   WV: "West Virginia",
   WI: "Wisconsin",
   WY: "Wyoming"
+};
+
+const STATIC_GOVERNORS = {
+  AL: { name: "Kay Ivey", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Governor%20Kay%20Ivey%202017%20(cropped).jpg?width=225" },
+  AK: { name: "Mike Dunleavy", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Mike%20Dunleavy%20by%20Gage%20Skidmore.jpg?width=225" },
+  AZ: { name: "Katie Hobbs", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Katie%20Hobbs%20by%20Gage%20Skidmore%206.jpg?width=225" },
+  AR: { name: "Sarah Huckabee Sanders", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Governor%20Sarah%20Huckabee%20Sanders%20(cropped)%20(cropped).jpg?width=225" },
+  CA: { name: "Gavin Newsom", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Gavin%20Newsom%202026%20(cropped%203x4%202).jpg?width=225" },
+  CO: { name: "Jared Polis", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Governor%20Jared%20Polis%202023%20(cropped)%20(cropped).jpg?width=225" },
+  CT: { name: "Ned Lamont", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Connecticut%20Governor%20Ned%20Lamont%20(cropped).jpg?width=225" },
+  DE: { name: "Matt Meyer", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/(02-19-2025)%20Matt%20Meyer.jpg?width=225" },
+  FL: {
+    name: "Ron DeSantis",
+    party: "Republican",
+    image: "https://commons.wikimedia.org/wiki/Special:FilePath/Ron%20DeSantis%20113th%20Congress.jpg?width=225",
+    imageFallbacks: ["https://commons.wikimedia.org/wiki/Special:FilePath/Ron%20DeSantis%20(53455112690)%20(cropped).png?width=225"]
+  },
+  GA: { name: "Brian Kemp", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/DAZ%201544PS%20(cropped).jpg?width=225" },
+  HI: { name: "Josh Green", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Josh%20Green%20Official%20Photo%202022%20(cropped)%20(cropped).jpg?width=225" },
+  ID: { name: "Brad Little", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Brad%20Little%20official%20photo%20(cropped).jpg?width=225" },
+  IL: { name: "JB Pritzker", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/JB%20Pritzker%20by%20Gage%20Skidmore%20(3x4).jpg?width=225" },
+  IN: { name: "Mike Braun", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Governor%20Mike%20Braun%20DHS.jpg?width=225" },
+  IA: { name: "Kim Reynolds", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Kim%20Reynolds%20(53462197855)%20(cropped)%20(cropped).jpg?width=225" },
+  KS: { name: "Laura Kelly", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Laura%20Kelly%20official%20photo%20(cropped).jpg?width=225" },
+  KY: { name: "Andy Beshear", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/AndyBeshear2025%20(cropped).jpg?width=225" },
+  LA: { name: "Jeff Landry", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Jeff%20Landry%20in%202025%20(cropped).jpg?width=225" },
+  ME: { name: "Janet Mills", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Janet%20Mills%20in%202019.jpg?width=225" },
+  MD: {
+    name: "Wes Moore",
+    party: "Democrat",
+    image: "https://commons.wikimedia.org/wiki/Special:FilePath/Wes%20Moore%20in%20February%202025.jpg?width=225",
+    imageFallbacks: ["https://commons.wikimedia.org/wiki/Special:FilePath/Governor%20Wes%20Moore%20official%20portrait.jpg?width=225"]
+  },
+  MA: { name: "Maura Healey", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Maura%20Healey%2054502293075%20(1).jpg?width=225" },
+  MI: { name: "Gretchen Whitmer", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/2025%20Gretchen%20Whitmer%20(cropped).jpg?width=225" },
+  MN: { name: "Tim Walz", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/TimWalz2025.jpg?width=225" },
+  MS: { name: "Tate Reeves", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Tate%20Reeves%202019%20(cropped).jpg?width=225" },
+  MO: { name: "Mike Kehoe", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Mike%20Kehoe%202025%20(croppedfurther).jpg?width=225" },
+  MT: { name: "Greg Gianforte", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Greg%20Gianforte%20in%20Taiwan%20(cropped).jpg?width=225" },
+  NE: { name: "Jim Pillen", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Jim%20Pillen%202023%20(cropped).jpg?width=225" },
+  NV: { name: "Joe Lombardo", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Joe%20Lombardo%20by%20Gage%20Skidmore%20(3x4%20cropped).jpg?width=225" },
+  NH: { name: "Kelly Ayotte", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Governor-elect%20Kelly%20Ayotte%202024%20(cropped).jpg?width=225" },
+  NJ: { name: "Mikie Sherrill", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Gov.%20Mikie%20Sherril%20(cropped).jpg?width=225" },
+  NM: { name: "Michelle Lujan Grisham", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Michelle%20Lujan%20Grisham%202021.jpg?width=225" },
+  NY: { name: "Kathy Hochul", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Kathy%20Hochul%2C%2017%20May%202024%20(cropped).jpg?width=225" },
+  NC: { name: "Josh Stein", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Secretary%20Turner%20Meeting%20with%20Josh%20Stein%2C%20Governor%20of%20North%20Carolina%20-%2054519013726%20(cropped)%20(cropped).jpg?width=225" },
+  ND: { name: "Kelly Armstrong", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Kelly%20Armstrong%20(cropped).jpg?width=225" },
+  OH: { name: "Mike DeWine", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Gov-Mike-DeWine%20(cropped).jpg?width=225" },
+  OK: { name: "Kevin Stitt", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Kevin%20Stitt%20(52251950006)%20(cropped).jpg?width=225" },
+  OR: { name: "Tina Kotek", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Governor%20Kotek%20(cropped).jpg?width=225" },
+  PA: { name: "Josh Shapiro", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Josh%20Shapiro%202023%20(3x4).jpg?width=225" },
+  RI: { name: "Dan McKee", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/RI%20Governor%20Daniel%20McKee.jpg?width=225" },
+  SC: { name: "Henry McMaster", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Governor%20Henry%20McMaster%20(crop).jpg?width=225" },
+  SD: { name: "Larry Rhoden", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Larry%20Rhoden%202025%20(cropped).jpg?width=225" },
+  TN: { name: "Bill Lee", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Hob%20Nob%20on%20the%20State%20Line%20with%20Tennessee%20Governor%20Bill%20Lee%2C%20Bristol%20(cropped).jpg?width=225" },
+  TX: { name: "Greg Abbott", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Greg%20Abbott%20at%20NASA%202024%20(cropped).jpg?width=225" },
+  UT: { name: "Spencer Cox", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Spencer%20Cox%20in%202024%20(cropped).jpg?width=225" },
+  VT: { name: "Phil Scott", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Phil%20Scott%202019%20(3x4%20cropped).png?width=225" },
+  VA: { name: "Abigail Spanberger", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Rep.%20Abigail%20Spanberger%20-%20118th%20Congress%20(3x4%20cropped).jpg?width=225" },
+  WA: { name: "Bob Ferguson", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Bob%20Ferguson%20at%20his%202023%20Shrimp%20Feed%2002%20(cropped).jpg?width=225" },
+  WV: { name: "Patrick Morrisey", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Governor%20Patrick%20Morrisey%20in%202025.jpg?width=225" },
+  WI: { name: "Tony Evers", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Tony%20Evers%20(cropped).jpg?width=225" },
+  WY: { name: "Mark Gordon", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Mark%20Gordon%20of%20Wyoming.jpg?width=225" }
 };
 
 const state = {
@@ -2961,6 +3024,48 @@ function uniqueTruthy(values) {
   return [...new Set(values.filter(Boolean))];
 }
 
+function governorNgaUrl(stateAbbr) {
+  const name = STATE_ABBR_TO_NAME[stateAbbr];
+  if (!name) return "https://www.nga.org/governors/";
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return `https://www.nga.org/governors/${slug}/`;
+}
+
+function staticGovernorForState(stateAbbr) {
+  const key = String(stateAbbr || "").trim().toUpperCase();
+  const governor = STATIC_GOVERNORS[key];
+  if (!governor) return null;
+  return {
+    ...governor,
+    imageFallbacks: governor.imageFallbacks || [],
+    links: [{ label: "National Governors Association", url: governorNgaUrl(key) }],
+    source: "Bundled current governor fallback"
+  };
+}
+
+function mergeGovernorWithFallback(governor, fallback, preferFallback = false) {
+  if (!fallback) return governor || null;
+  if (!governor) return fallback;
+  const base = preferFallback ? fallback : governor;
+  const secondary = preferFallback ? governor : fallback;
+  return {
+    ...secondary,
+    ...base,
+    party: base.party || secondary.party,
+    image: base.image || secondary.image,
+    imageFallbacks: uniqueTruthy([
+      ...(base.imageFallbacks || []),
+      secondary.image,
+      ...(secondary.imageFallbacks || []),
+      base.wikidataImage,
+      secondary.wikidataImage
+    ]),
+    links: base.links?.length ? base.links : secondary.links,
+    wikidataImage: base.wikidataImage || secondary.wikidataImage,
+    source: base.source || secondary.source
+  };
+}
+
 function bioguidePhotoUrl(bioguide) {
   const id = String(bioguide || "").trim();
   if (!id) return "";
@@ -3193,6 +3298,7 @@ function geographyExtraSection(geoid, profile, extras) {
           name: governor.name,
           party: governor.party,
           image: governor.image,
+          imageFallbacks: governor.imageFallbacks || [],
           fallbackImage: governor.wikidataImage,
           url: governor.links?.[0]?.url,
           email: governor.email
@@ -3550,6 +3656,7 @@ async function loadCongressData() {
 async function loadLiveStateOfficials(stateAbbr) {
   const key = String(stateAbbr || "").trim().toUpperCase();
   if (!key) return null;
+  if (!STATE_OFFICIALS_API) return null;
   if (state.stateOfficialsCache.has(key)) return state.stateOfficialsCache.get(key);
 
   const params = new URLSearchParams({ state: key });
@@ -4250,6 +4357,7 @@ async function loadGeographyExtras(geoid, profile) {
   if (type.id === "state") {
     const stateAbbr = parseStateGeoid(geoid);
     if (stateAbbr) {
+      const governorFallback = staticGovernorForState(stateAbbr);
       try {
         await loadCongressData();
         extras.senators = getStateSenators(stateAbbr).slice(0, 2);
@@ -4265,12 +4373,17 @@ async function loadGeographyExtras(geoid, profile) {
       }
 
       try {
+        if (!extras.governor && !HAS_LOCAL_SERVER_PROXY) {
+          extras.governor = governorFallback;
+        }
         if (!extras.governor) {
           const people = await loadStateExecutiveData(stateAbbr);
           extras.governor = findGovernor(people);
         }
+        extras.governor = mergeGovernorWithFallback(extras.governor, governorFallback, !HAS_LOCAL_SERVER_PROXY);
         await attachWikidataImage(extras.governor);
       } catch (error) {
+        extras.governor = mergeGovernorWithFallback(extras.governor, governorFallback, !HAS_LOCAL_SERVER_PROXY);
         extras.stateOfficialsError = [extras.stateOfficialsError, error.message].filter(Boolean).join("; ");
       }
     }
