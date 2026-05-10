@@ -1558,6 +1558,59 @@ const STATIC_GOVERNORS = {
   WY: { name: "Mark Gordon", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Mark%20Gordon%20of%20Wyoming.jpg?width=225" }
 };
 
+const STATIC_LIEUTENANT_GOVERNORS = {
+  AL: { label: "Lieutenant Governor", name: "Will Ainsworth", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Alabama%20Lieutenant%20Governor%20visits%20Lyster%20Army%20Health%20Clinic%20%28cropped%29.jpg?width=225" },
+  AK: { label: "Lieutenant Governor", name: "Nancy Dahlstrom", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Nancy%20Dahlstrom%2C%202024.jpg?width=225" },
+  AZ: { label: "Designated successor", office: "Secretary of State", name: "Adrian Fontes", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Adrian%20Fontes%20by%20Gage%20Skidmore.jpg?width=225" },
+  AR: { label: "Lieutenant Governor", name: "Leslie Rutledge", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Leslie%20Rutledge%20%2825475720912%29%20%281%29.jpg?width=225" },
+  CA: { label: "Lieutenant Governor", name: "Eleni Kounalakis", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Eleni%20Kounalakis%20in%202021.jpg?width=225" },
+  CO: { label: "Lieutenant Governor", name: "Dianne Primavera", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/2010%20Official%20Picture%20of%20Representative%20Dianne%20Primavera%20%28cropped%29.jpg?width=225" },
+  CT: { label: "Lieutenant Governor", name: "Susan Bysiewicz", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Bysiewicz%20Sworn%20In%20%28cropped%29.jpg?width=225" },
+  DE: { label: "Lieutenant Governor", name: "Kyle Evans Gay", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/%2802-19-2025%29%20Kyle%20Evans%20Gay.jpg?width=225" },
+  FL: { label: "Lieutenant Governor", name: "Jay Collins", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Official%20portrait%20of%20Lieutenant%20Governor%20of%20Florida%20Jay%20Collins%20%28cropped%201%29.jpg?width=225" },
+  GA: { label: "Lieutenant Governor", name: "Burt Jones", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Georgia%20Lt.%20Gov.%20Burt%20Jones%202023%20%28cropped%202%29.jpg?width=225" },
+  HI: { label: "Acting Lieutenant Governor", office: "Comptroller; Sylvia Luke on leave", name: "Keith Regan", party: "Democrat", image: "https://ags.hawaii.gov/wp-content/uploads/2025/04/Keith-Regan-2.jpg" },
+  ID: { label: "Lieutenant Governor", name: "Scott Bedke", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Scott%20Bedke%20in%202022%20%28cropped%29.jpg?width=225" },
+  IL: { label: "Lieutenant Governor", name: "Juliana Stratton", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Juliana%20Stratton%202023%20%28cropped%29.jpg?width=225" },
+  IN: { label: "Lieutenant Governor", name: "Micah Beckwith", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Beckwith%20Headshot.jpg?width=225" },
+  IA: { label: "Lieutenant Governor", name: "Chris Cournoyer", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Iowa%20State%20Senator%20Chris%20Cournoyer.jpg?width=225" },
+  KS: { label: "Lieutenant Governor", name: "David Toland", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/David%20Toland%20official%20photo%20%28cropped%29.jpg?width=225" },
+  KY: { label: "Lieutenant Governor", name: "Jacqueline Coleman", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Jacqueline%20Coleman.png?width=225" },
+  LA: { label: "Lieutenant Governor", name: "Billy Nungesser", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Billy%20Nungesser%202018.jpg?width=225" },
+  ME: { label: "Designated successor", office: "President of the Senate", name: "Mattie Daughtry", party: "Democrat", image: "https://www.mainesenate.org/wp-content/uploads/2020/12/Daughtry-1.png" },
+  MD: { label: "Lieutenant Governor", name: "Aruna Miller", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Aruna%20Miller%20Official%20Portrait.jpg?width=225" },
+  MA: { label: "Lieutenant Governor", name: "Kim Driscoll", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Kim%20Driscoll%2C%20official%20portrait%2C%20lieutenant%20governor%20%28cropped%29.jpg?width=225" },
+  MI: { label: "Lieutenant Governor", name: "Garlin Gilchrist", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/8R4A9159%20%2853359280492%29%20%28Garlin%20Gilchrist%29.jpg?width=225" },
+  MN: { label: "Lieutenant Governor", name: "Peggy Flanagan", party: "Democrat-Farmer-Labor", image: "https://commons.wikimedia.org/wiki/Special:FilePath/PFlanagan%20close%20up.jpg?width=225" },
+  MS: { label: "Lieutenant Governor", name: "Delbert Hosemann", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Delbert%20Hosemann.jpg?width=225" },
+  MO: { label: "Lieutenant Governor", name: "David Wasinger", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Lieutenant%20Governor%20of%20Missouri%20David%20G.%20Wasinger%20%28cropped%29.jpg?width=225" },
+  MT: { label: "Lieutenant Governor", name: "Kristen Juras", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Kristen%20Juras.jpg?width=225" },
+  NE: { label: "Lieutenant Governor", name: "Joe Kelly", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Joseph%20P%20Kelly.jpg?width=225" },
+  NV: { label: "Lieutenant Governor", name: "Stavros Anthony", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Stavros%20Anthony%2C%202023.jpg?width=225" },
+  NH: { label: "Designated successor", office: "President of the Senate", name: "Sharon Carson", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Sharon%20Carson%20The%20Benefits%20of%20Family%20%281%29%20%28cropped%29.jpg?width=225" },
+  NJ: { label: "Lieutenant Governor", name: "Dale Caldwell", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Lt.%20Governor%20Dr.%20Dale%20G.%20Caldwell.jpg?width=225" },
+  NM: { label: "Lieutenant Governor", name: "Howie Morales", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Lt.%20Governor%20Presiding%20in%20the%20Senate%20%28cropped%29.jpg?width=225" },
+  NY: { label: "Lieutenant Governor", name: "Antonio Delgado", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Antonio%20Delgado%2C%20official%20portrait%2C%20116th%20Congress%20%28cropped%29.jpg?width=225" },
+  NC: { label: "Lieutenant Governor", name: "Rachel Hunt", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Senator%20Rachel%20Hunt%202023-25%20Legislative%20Portrait%20%28cropped%29.jpg?width=225" },
+  ND: { label: "Lieutenant Governor", name: "Michelle Strinden", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Michelle%20Strinden.jpg?width=225" },
+  OH: { label: "Lieutenant Governor", name: "Jim Tressel", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Jim%20Tressel%20%28extra%20cropped%29.jpg?width=225" },
+  OK: { label: "Lieutenant Governor", name: "Matt Pinnell", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Lieutenant%20Governor%20of%20Oklahoma%20Matt%20Pinnell.jpg?width=225" },
+  OR: { label: "Designated successor", office: "Secretary of State", name: "Tobias Read", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Tobias%20Read%202017.jpg?width=225" },
+  PA: { label: "Lieutenant Governor", name: "Austin Davis", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/AustinDavis.jpg?width=225" },
+  RI: { label: "Lieutenant Governor", name: "Sabina Matos", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Sabina%20Matos%2011.21.jpg?width=225" },
+  SC: { label: "Lieutenant Governor", name: "Pamela Evette", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Pamela%20Evette%202019.jpg?width=225" },
+  SD: { label: "Lieutenant Governor", name: "Tony Venhuizen", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Tony%20Venhuizen%20speaks%20at%20Joe%20Foss%20Field%202025%20Cropped%20v2.jpg?width=225" },
+  TN: { label: "Lieutenant Governor", office: "Speaker of the Senate", name: "Randy McNally", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Sen.%20Randy%20McNally%20%28cropped%29.jpg?width=225" },
+  TX: { label: "Lieutenant Governor", name: "Dan Patrick", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Dan%20Patrick%20Texas%20%28alt%20crop%29.jpg?width=225" },
+  UT: { label: "Lieutenant Governor", name: "Deidre Henderson", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Official%20portrait%20of%20Utah%20Lt.%20Gov.%20Deidre%20Henderson%20%28cropped%29.png?width=225" },
+  VT: { label: "Lieutenant Governor", name: "John S. Rodgers", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/John%20S.%20Rodgers%2C%202024.jpg?width=225" },
+  VA: { label: "Lieutenant Governor", name: "Ghazala Hashmi", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Ghazala%20Hashmi%202025%20%28cropped%29.png?width=225" },
+  WA: { label: "Lieutenant Governor", name: "Denny Heck", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Denny%20Heck%20official%20photo%20%28cropped%29.jpg?width=225" },
+  WV: { label: "Lieutenant Governor", office: "President of the Senate", name: "Randy Smith", party: "Republican", image: "https://home.wvlegislature.gov/wp-content/uploads/2025/01/Smith_Randy-2025-X2.jpg" },
+  WI: { label: "Lieutenant Governor", name: "Sara Rodriguez", party: "Democrat", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Sara%20Rodriguez%202023%20%28cropped%29.png?width=225" },
+  WY: { label: "Designated successor", office: "Secretary of State", name: "Chuck Gray", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Chuck%20Gray%20by%20Gage%20Skidmore.jpg?width=225" }
+};
+
 const state = {
   index: null,
   boundaryGeojson: null,
@@ -3046,6 +3099,17 @@ function staticGovernorForState(stateAbbr) {
   };
 }
 
+function staticLieutenantGovernorForState(stateAbbr) {
+  const key = String(stateAbbr || "").trim().toUpperCase();
+  const official = STATIC_LIEUTENANT_GOVERNORS[key];
+  if (!official) return null;
+  return {
+    ...official,
+    imageFallbacks: official.imageFallbacks || [],
+    source: "Bundled current lieutenant governor fallback"
+  };
+}
+
 function mergeGovernorWithFallback(governor, fallback, preferFallback = false) {
   if (!fallback) return governor || null;
   if (!governor) return fallback;
@@ -3095,10 +3159,16 @@ function congressionalPhotoUrls(member) {
   ]);
 }
 
-function legislatorCard({ label, name, party, district, image, imageFallbacks = [], fallbackImage, url, email }) {
+function legislatorCard({ label, name, party, district, office, note, image, imageFallbacks = [], fallbackImage, url, email }) {
   const images = uniqueTruthy([image, ...imageFallbacks, fallbackImage]);
   const displayImage = images[0] || "";
   const hasImage = Boolean(displayImage);
+  const noteParts = [
+    party || "Party not available",
+    office,
+    district ? `District ${district}` : "",
+    note
+  ].filter(Boolean);
   const fallbackAttribute = images.length > 1 ? ` data-fallbacks="${escapeHtml(images.slice(1).join("|"))}"` : "";
   return `
     <article class="representative-card ${hasImage ? "" : "no-image"} ${partyClass(party)}">
@@ -3106,7 +3176,7 @@ function legislatorCard({ label, name, party, district, image, imageFallbacks = 
       <div>
         <span class="stat-label">${escapeHtml(tr(label))}</span>
         <span class="stat-value">${escapeHtml(name || tr("Not available"))}</span>
-        <span class="stat-note">${escapeHtml(party || "Party not available")}${district ? ` - District ${escapeHtml(district)}` : ""}</span>
+        <span class="stat-note">${escapeHtml(noteParts.join(" - "))}</span>
         ${url ? `<a href="${url}" target="_blank" rel="noreferrer">${escapeHtml(tr("Official website"))}</a>` : ""}
         ${email ? `<a href="mailto:${email}">${escapeHtml(email)}</a>` : ""}
       </div>
@@ -3293,6 +3363,24 @@ function geographyExtraSection(geoid, profile, extras) {
   }
 
   if (type.id === "state") {
+    const lieutenantGovernor = extras?.lieutenantGovernor;
+    if (lieutenantGovernor) {
+      cards.unshift(
+        legislatorCard({
+          label: lieutenantGovernor.label || "Lieutenant Governor",
+          name: lieutenantGovernor.name,
+          party: lieutenantGovernor.party,
+          office: lieutenantGovernor.office,
+          note: lieutenantGovernor.note,
+          image: lieutenantGovernor.image,
+          imageFallbacks: lieutenantGovernor.imageFallbacks || [],
+          fallbackImage: lieutenantGovernor.wikidataImage,
+          url: lieutenantGovernor.links?.[0]?.url,
+          email: lieutenantGovernor.email
+        })
+      );
+    }
+
     const governor = extras?.governor;
     if (governor) {
       cards.unshift(
@@ -4361,10 +4449,12 @@ async function loadGeographyExtras(geoid, profile) {
     const stateAbbr = parseStateGeoid(geoid);
     if (stateAbbr) {
       const governorFallback = staticGovernorForState(stateAbbr);
+      extras.lieutenantGovernor = staticLieutenantGovernorForState(stateAbbr);
       try {
         await loadCongressData();
         extras.senators = getStateSenators(stateAbbr).slice(0, 2);
         await Promise.all(extras.senators.map((senator) => attachWikidataImage(senator, representativeName(senator))));
+        await attachWikidataImage(extras.lieutenantGovernor);
       } catch (error) {
         extras.stateOfficialsError = error.message;
       }
