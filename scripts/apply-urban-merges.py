@@ -87,6 +87,10 @@ MERGE_GROUPS = [
     },
 ]
 
+DISPLAY_NAME_OVERRIDES = {
+    "40000US61273": "Nashville Urban Area",
+}
+
 
 def round_or_none(value, places=1):
     if value is None or not math.isfinite(value):
@@ -98,6 +102,31 @@ def simple_urban_name(name):
     base = str(name or "").replace(" Urban Area", "")
     first = base.split("--", 1)[0].split(",", 1)[0].strip()
     return f"{first} Urban Area" if first else name
+
+
+def display_urban_name(area):
+    return DISPLAY_NAME_OVERRIDES.get(area.get("geoid")) or simple_urban_name(area.get("name"))
+
+
+def apply_display_names(areas_payload, boundaries):
+    areas_by_geoid = {}
+    for area in areas_payload.get("areas", []):
+        name = DISPLAY_NAME_OVERRIDES.get(area.get("geoid"))
+        if not name:
+            continue
+        area.setdefault("originalName", area.get("name"))
+        area["name"] = name
+        area.setdefault("aliases", [])
+        area["aliases"] = sorted({*area["aliases"], area.get("originalName"), area.get("tigerName")})
+        areas_by_geoid[area["geoid"]] = area
+
+    for feature in boundaries.get("features", []):
+        geoid = f"40000US{feature.get('properties', {}).get('GEOID')}"
+        area = areas_by_geoid.get(geoid)
+        if area:
+            feature.setdefault("properties", {})["NAME"] = area["name"]
+
+    return bool(areas_by_geoid)
 
 
 def weighted_average(areas, key, weight_key):
@@ -218,7 +247,12 @@ def main():
     if all(group["geoid"] in areas_by_geoid for group in MERGE_GROUPS) and not any(
         geoid in areas_by_geoid for geoid in component_geoids
     ):
-        print("Urban-area merges are already applied")
+        if apply_display_names(areas_payload, boundaries):
+            AREAS_PATH.write_text(json.dumps(areas_payload, separators=(",", ":")) + "\n", encoding="utf-8")
+            BOUNDARIES_PATH.write_text(json.dumps(boundaries, separators=(",", ":")) + "\n", encoding="utf-8")
+            print("Urban-area display names updated")
+        else:
+            print("Urban-area merges are already applied")
         return
 
     merged_areas = []
@@ -272,7 +306,7 @@ def main():
             continue
         renamed = deepcopy(area)
         renamed["originalName"] = area.get("name")
-        renamed["name"] = simple_urban_name(area.get("name"))
+        renamed["name"] = display_urban_name(area)
         renamed.setdefault("aliases", [])
         renamed["aliases"] = sorted({*renamed["aliases"], area.get("name"), area.get("tigerName")})
         renamed_areas.append(renamed)

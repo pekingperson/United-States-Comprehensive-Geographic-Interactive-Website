@@ -23,7 +23,7 @@ const GOOGLE_SATELLITE_TILE = HAS_LOCAL_SERVER_PROXY ? "/proxy/google-satellite/
 const GOOGLE_3D_ROOT = "https://tile.googleapis.com/v1/3dtiles/root.json?key={key}";
 const CESIUM_SCRIPT_URL = "https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Cesium.js";
 const CESIUM_CSS_URL = "https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Widgets/widgets.css";
-const BOUNDARY_URL = "data/urban-area-boundaries.json?v=20260509-urban-merge-additions";
+const BOUNDARY_URL = "data/urban-area-boundaries.json?v=20260509-nashville-name";
 const SCHOOL_RATINGS_URL = "data/school-ratings.json?v=20260509-school-rich";
 const SCHOOL_RATINGS_API = "/api/school-ratings";
 const STATE_OFFICIALS_API = "/api/state-officials";
@@ -5464,7 +5464,7 @@ async function init() {
     setGoogleMapStatus(`Google map view failed. ${error.message}`);
   });
 
-  state.index = await fetchJsonWithRetry("data/urban-areas.json?v=20260509-urban-merge-additions", { cache: "force-cache" });
+  state.index = await fetchJsonWithRetry("data/urban-areas.json?v=20260509-nashville-name", { cache: "force-cache" });
 
   updateGeographyChrome();
   setTimeout(loadBoundaryOverlay, 0);
