@@ -594,8 +594,20 @@ function apiSchoolData(path, params = {}, timeoutMs = 9000) {
 }
 
 async function schoolRows(path, leaid, params = {}) {
-  const payload = await apiSchoolData(path, { leaid, page_size: 500, ...params });
-  return Array.isArray(payload.results) ? payload.results : [];
+  const rows = [];
+  let nextPath = path;
+  let nextParams = { leaid, page_size: 500, ...params };
+
+  for (let page = 0; nextPath && page < 20; page += 1) {
+    const payload = await apiSchoolData(nextPath, nextParams);
+    if (Array.isArray(payload.results)) rows.push(...payload.results);
+    if (!payload.next) break;
+    const nextUrl = new URL(String(payload.next).replace(/^http:/, "https:"));
+    nextPath = `${nextUrl.pathname}${nextUrl.search}`;
+    nextParams = {};
+  }
+
+  return rows;
 }
 
 async function firstSchoolRow(path, leaid, params = {}) {
@@ -760,7 +772,7 @@ function officialSchoolRatingFields(data, fallbackName = "") {
     topSchools: highlightedSchools,
     notes: [
       "Official live district data comes from NCES CCD, CRDC, EDFacts, and SAIPE via the Urban Institute Education Data API.",
-      "Niche-only category grades, review mixes, popular colleges, and local living grades require opening the linked Niche page when they are not already in the local cache."
+      "Niche-only category grades, review mixes, popular colleges, and local living grades require opening the linked Niche page unless licensed/manual data has been added."
     ]
   };
 }
@@ -810,10 +822,10 @@ function buildSchoolRatingResponse({ geoid, name, state, nicheItems, usNewsItems
     geoid,
     name: official.name || name,
     state,
-    source: officialData ? "Niche / US News / NCES live lookup" : "Live Niche / US News lookup",
+    source: officialData ? "Niche / US News / official school data" : "Niche / US News source links",
     sourceUrl,
     rankingsUrl,
-    overallGrade: ratingDescriptor(description) || (primaryNiche ? "Current Niche result" : "Open Niche"),
+    overallGrade: ratingDescriptor(description) || (primaryNiche ? "Current Niche result" : officialData ? "Official data" : "Source links"),
     rating: primaryNiche ? "Niche result found" : officialData ? "Official district data loaded" : "Source links ready",
     reviewCount: "",
     headlineRank: rankingNiche ? "Niche rankings result found" : "",
@@ -821,7 +833,7 @@ function buildSchoolRatingResponse({ geoid, name, state, nicheItems, usNewsItems
       description ||
       (officialData
         ? "Niche page links and official NCES/CRDC/EDFacts district data are shown below."
-        : "No indexed rating snippet was returned for this district, but the Niche profile, Niche rankings, and US News search links are available below."),
+        : "Current Niche profile, Niche rankings, and US News search links are available below."),
     districtType: official.districtType,
     location: official.location,
     contact: official.contact,
@@ -833,8 +845,8 @@ function buildSchoolRatingResponse({ geoid, name, state, nicheItems, usNewsItems
     externalLinks: links,
     notes: [
       ...(official.notes || []),
-      "Fallback data comes from current indexed result snippets and source links when a district is not in the local cache.",
-      "Open Niche or US News for the full current grade, ranking tables, and methodology."
+      "Search snippets and source links are included when current third-party results are available.",
+      "Open Niche or US News for full current grades, ranking tables, reviews, and methodology."
     ]
   };
 }

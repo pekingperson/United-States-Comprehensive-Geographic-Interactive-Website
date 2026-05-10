@@ -24,8 +24,9 @@ const GOOGLE_3D_ROOT = "https://tile.googleapis.com/v1/3dtiles/root.json?key={ke
 const CESIUM_SCRIPT_URL = "https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Cesium.js";
 const CESIUM_CSS_URL = "https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Widgets/widgets.css";
 const BOUNDARY_URL = "data/urban-area-boundaries.json?v=20260509-louisville-name";
-const SCHOOL_RATINGS_URL = "data/school-ratings.json?v=20260509-school-rich";
-const SCHOOL_RATINGS_API = "/api/school-ratings";
+const SCHOOL_RATINGS_URL = "data/school-ratings.json?v=20260510-school-official-data";
+const SCHOOL_RATINGS_API = HAS_LOCAL_SERVER_PROXY ? "/api/school-ratings" : "";
+const EDUCATION_DATA_API = "https://educationdata.urban.org";
 const STATE_OFFICIALS_API = HAS_LOCAL_SERVER_PROXY ? "/api/state-officials" : "";
 const MAYOR_PARTY_API = "/api/mayor-party";
 const DOT_TILE_SIZE = 256;
@@ -1623,6 +1624,7 @@ const state = {
   geometryCache: new Map(),
   schoolRatings: null,
   liveSchoolRatingsCache: new Map(),
+  educationDataCache: new Map(),
   searchCache: new Map(),
   extrasCache: new Map(),
   congressData: null,
@@ -3261,8 +3263,8 @@ function schoolRatingsSection(ratings, links) {
     return `
       <article class="stat-card external-links">
         <span class="stat-label">${escapeHtml(tr("School ratings"))}</span>
-        <span class="stat-value">${escapeHtml(tr("Live lookup"))}</span>
-        <span class="stat-note">Open the Niche and US News source links for current ratings and rankings.</span>
+        <span class="stat-value">${escapeHtml(tr("Source links"))}</span>
+        <span class="stat-note">Open the Niche and US News source links for current third-party ratings and rankings.</span>
         ${externalLinksHtml(links)}
       </article>
     `;
@@ -3677,6 +3679,264 @@ function schoolSourceLinks(profile, geoid) {
   ];
 }
 
+function schoolLeaid(geoid) {
+  const id = String(geoid || "").replace(/^97000US/, "");
+  return /^\d+$/.test(id) ? id : "";
+}
+
+function schoolPositiveNumber(value) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : null;
+}
+
+function schoolFormatWhole(value) {
+  const number = schoolPositiveNumber(value);
+  return number == null ? "" : Math.round(number).toLocaleString(languageLocale());
+}
+
+function schoolFormatCurrency(value) {
+  const number = schoolPositiveNumber(value);
+  return number == null ? "" : currency(number);
+}
+
+function schoolFormatPercent(value, digits = 1) {
+  const number = schoolPositiveNumber(value);
+  if (number == null) return "";
+  return `${Number.isInteger(number) ? number : number.toFixed(digits).replace(/\.0$/, "")}%`;
+}
+
+function ncesGradeLabel(value) {
+  const grade = Number(value);
+  if (grade === -1) return "PK";
+  if (grade === 0) return "K";
+  if (Number.isInteger(grade) && grade > 0) return String(grade);
+  return "";
+}
+
+function ncesGradeSpan(low, high) {
+  const start = ncesGradeLabel(low);
+  const end = ncesGradeLabel(high);
+  if (!start && !end) return "";
+  if (start === end) return start;
+  if (start === "PK" && end && end !== "PK") return `PK, K-${end}`;
+  return [start, end].filter(Boolean).join("-");
+}
+
+async function educationRows(path, params = {}, maxPages = 8) {
+  const normalizedParams = { page_size: 500, ...params };
+  const cacheKey = `${path}?${new URLSearchParams(normalizedParams).toString()}`;
+  if (state.educationDataCache.has(cacheKey)) return state.educationDataCache.get(cacheKey);
+
+  const request = (async () => {
+    const rows = [];
+    let url = new URL(path, EDUCATION_DATA_API);
+    for (const [key, value] of Object.entries(normalizedParams)) {
+      if (value != null && value !== "") url.searchParams.set(key, value);
+    }
+
+    for (let page = 0; url && page < maxPages; page += 1) {
+      const payload = await fetchJsonWithRetry(url.toString(), { cache: "force-cache" }, 1);
+      if (Array.isArray(payload.results)) rows.push(...payload.results);
+      url = payload.next ? new URL(String(payload.next).replace(/^http:/, "https:")) : null;
+    }
+    return rows;
+  })().catch(() => []);
+
+  state.educationDataCache.set(cacheKey, request);
+  return request;
+}
+
+async function firstEducationRow(path, params = {}) {
+  return (await educationRows(path, params, 1))[0] || null;
+}
+
+function sumSchoolRows(rows, key) {
+  return rows.reduce((sum, row) => sum + (schoolPositiveNumber(row[key]) || 0), 0);
+}
+
+function weightedSchoolAssessmentPercent(rows, percentKey, countKey) {
+  let total = 0;
+  let weighted = 0;
+  for (const row of rows) {
+    const value = schoolPositiveNumber(row[percentKey]);
+    const count = schoolPositiveNumber(row[countKey]);
+    if (value == null || count == null || count <= 0) continue;
+    total += count;
+    weighted += value * count;
+  }
+  return total > 0 ? weighted / total : null;
+}
+
+async function loadAssessmentRows(leaid) {
+  const gradePaths = [3, 4, 5, 6, 7, 8].map((grade) =>
+    educationRows(`/api/v1/school-districts/edfacts/assessments/2020/grade-${grade}/`, { leaid })
+  );
+  return (await Promise.all(gradePaths)).flat();
+}
+
+async function loadOfficialSchoolDistrictData(leaid) {
+  if (!leaid) return null;
+  const [directory, schools, finance, saipe, gradRate, assessments, offerings, teacherStaff] = await Promise.all([
+    firstEducationRow("/api/v1/school-districts/ccd/directory/2024/", { leaid }),
+    educationRows("/api/v1/schools/ccd/directory/2024/", { leaid }, 20),
+    firstEducationRow("/api/v1/school-districts/ccd/finance/2020/", { leaid }),
+    firstEducationRow("/api/v1/school-districts/saipe/2024/", { leaid }),
+    firstEducationRow("/api/v1/school-districts/edfacts/grad-rates/2019/", { leaid }),
+    loadAssessmentRows(leaid),
+    educationRows("/api/v1/schools/crdc/offerings/2021/", { leaid }, 20),
+    educationRows("/api/v1/schools/crdc/teachers-staff/2021/", { leaid }, 20)
+  ]);
+
+  if (!directory && !schools.length && !finance && !saipe && !gradRate) return null;
+  return { directory, schools, finance, saipe, gradRate, assessments, offerings, teacherStaff };
+}
+
+function officialSchoolRatingFields(data, fallbackName = "") {
+  if (!data) return {};
+  const directory = data.directory || {};
+  const finance = data.finance || {};
+  const schools = data.schools || [];
+  const offerings = data.offerings || [];
+  const teacherStaff = data.teacherStaff || [];
+
+  const enrollment = schoolPositiveNumber(directory.enrollment) || sumSchoolRows(schools, "enrollment");
+  const teachers = schoolPositiveNumber(directory.teachers_total_fte);
+  const freeReduced = sumSchoolRows(schools, "free_or_reduced_price_lunch");
+  const currentExpense = schoolPositiveNumber(finance.exp_current_elsec_total);
+  const instructionExpense = schoolPositiveNumber(finance.exp_current_instruction_total);
+  const supportExpense = schoolPositiveNumber(finance.exp_current_supp_serve_total);
+  const otherExpense =
+    currentExpense == null ? null : Math.max(0, currentExpense - (instructionExpense || 0) - (supportExpense || 0));
+  const instructionSalary = schoolPositiveNumber(finance.salaries_instruction);
+  const firstSecondYearTeachers = teacherStaff.reduce(
+    (sum, row) =>
+      sum + (schoolPositiveNumber(row.teachers_first_year_fte) || 0) + (schoolPositiveNumber(row.teachers_second_year_fte) || 0),
+    0
+  );
+  const crdcTeachers = teacherStaff.reduce((sum, row) => sum + (schoolPositiveNumber(row.teachers_fte_crdc) || 0), 0);
+  const readingPct = weightedSchoolAssessmentPercent(data.assessments || [], "read_test_pct_prof_midpt", "read_test_num_valid");
+  const mathPct = weightedSchoolAssessmentPercent(data.assessments || [], "math_test_pct_prof_midpt", "math_test_num_valid");
+
+  const stats = [
+    enrollment ? { label: "Students", value: schoolFormatWhole(enrollment) } : null,
+    ncesGradeSpan(directory.lowest_grade_offered, directory.highest_grade_offered)
+      ? { label: "Grades", value: ncesGradeSpan(directory.lowest_grade_offered, directory.highest_grade_offered) }
+      : null,
+    enrollment && teachers ? { label: "Student-teacher ratio", value: `${Math.round(enrollment / teachers)}:1` } : null,
+    readingPct != null ? { label: "Reading proficiency", value: schoolFormatPercent(readingPct, 1) } : null,
+    mathPct != null ? { label: "Math proficiency", value: schoolFormatPercent(mathPct, 1) } : null,
+    schoolPositiveNumber(data.gradRate?.grad_rate_midpt) != null
+      ? { label: "Average graduation rate", value: schoolFormatPercent(data.gradRate.grad_rate_midpt, 1) }
+      : null,
+    enrollment && freeReduced ? { label: "Free or reduced lunch", value: schoolFormatPercent((freeReduced / enrollment) * 100, 1) } : null,
+    instructionSalary && teachers ? { label: "Average teacher salary", value: schoolFormatCurrency(instructionSalary / teachers) } : null,
+    firstSecondYearTeachers && crdcTeachers
+      ? { label: "Teachers in first/second year", value: schoolFormatPercent((firstSecondYearTeachers / crdcTeachers) * 100, 1) }
+      : null,
+    currentExpense && enrollment ? { label: "Expenses per student", value: schoolFormatCurrency(currentExpense / enrollment) } : null,
+    directory.number_of_schools ? { label: "Schools", value: schoolFormatWhole(directory.number_of_schools) } : null,
+    teachers ? { label: "Teachers", value: schoolFormatWhole(teachers) } : null,
+    schoolPositiveNumber(data.saipe?.est_population_5_17_poverty_pct) != null
+      ? { label: "School-age poverty", value: schoolFormatPercent(data.saipe.est_population_5_17_poverty_pct * 100, 1) }
+      : null
+  ].filter(Boolean);
+
+  const address = [
+    directory.street_location || directory.street_mailing,
+    directory.city_location || directory.city_mailing,
+    directory.state_location || directory.state_mailing,
+    directory.zip_location || directory.zip_mailing
+  ]
+    .filter(Boolean)
+    .join(", ")
+    .replace(/, ([A-Z]{2}), /, ", $1 ");
+
+  const hasAp = offerings.some((row) =>
+    [
+      row.ap_courses_indicator,
+      row.students_select_ap_indicator,
+      row.ap_courses_math_indicator,
+      row.ap_courses_science_indicator,
+      row.ap_courses_other_indicator,
+      row.num_courses_ap
+    ].some((value) => Number(value) > 0)
+  );
+  const hasGifted = offerings.some((row) => Number(row.gifted_talented_indicator) > 0);
+  const hasDual = offerings.some((row) => Number(row.sch_dual_indicator) > 0);
+
+  const financeBreakdown =
+    currentExpense && (instructionExpense || supportExpense || otherExpense)
+      ? [
+          instructionExpense ? { label: "Instruction", value: Math.round((instructionExpense / currentExpense) * 100) } : null,
+          supportExpense ? { label: "Support services", value: Math.round((supportExpense / currentExpense) * 100) } : null,
+          otherExpense ? { label: "Other", value: Math.round((otherExpense / currentExpense) * 100) } : null
+        ].filter(Boolean)
+      : [];
+
+  const topSchools = schools
+    .filter((school) => schoolPositiveNumber(school.enrollment))
+    .sort((a, b) => (schoolPositiveNumber(b.enrollment) || 0) - (schoolPositiveNumber(a.enrollment) || 0))
+    .slice(0, 10)
+    .map((school) => ({
+      label: school.school_name,
+      value: ncesGradeSpan(school.lowest_grade_offered, school.highest_grade_offered) || "School",
+      note: `${schoolFormatWhole(school.enrollment)} students`
+    }));
+
+  return {
+    name: fallbackName || directory.lea_name || data.saipe?.district_name || "",
+    districtType: "School District",
+    location: [directory.city_location || directory.city_mailing, directory.state_location || directory.state_mailing].filter(Boolean).join(", "),
+    contact: {
+      address,
+      phone: directory.phone || ""
+    },
+    offerings: [
+      hasAp ? "AP offered" : null,
+      hasGifted ? "Gifted program offered" : null,
+      hasDual ? "Dual enrollment offered" : null
+    ].filter(Boolean),
+    financeBreakdown,
+    topSchools,
+    stats
+  };
+}
+
+function buildOfficialSchoolRatings(geoid, profile, officialData) {
+  const name = schoolRatingLookupName(profile, geoid);
+  const official = officialSchoolRatingFields(officialData, name);
+  const links = mergeLinks(
+    [
+      { label: "Education Data API", url: "https://educationdata.urban.org/documentation/" },
+      { label: "NCES Common Core of Data", url: "https://nces.ed.gov/ccd/files.asp" }
+    ],
+    schoolSourceLinks(profile, geoid)
+  );
+
+  return {
+    geoid,
+    name: official.name || name,
+    state: schoolDistrictState(geoid, profile),
+    source: "Official school district data",
+    overallGrade: "Official data",
+    rating: "Public data loaded",
+    summary:
+      "Official NCES, CRDC, EDFacts, and SAIPE district data is shown below. Niche and US News links are included for current third-party ratings and rankings.",
+    districtType: official.districtType,
+    location: official.location,
+    contact: official.contact,
+    offerings: official.offerings || [],
+    financeBreakdown: official.financeBreakdown || [],
+    topSchools: official.topSchools || [],
+    stats: official.stats || [],
+    externalLinks: links,
+    notes: [
+      "Official district data comes from NCES CCD, CRDC, EDFacts, and SAIPE via the Urban Institute Education Data API.",
+      "Niche/US News grades, review tables, rankings, popular colleges, and living-area grades are third-party data; open the linked source pages for fields that are not in the manual cache."
+    ]
+  };
+}
+
 function mergeLinks(...groups) {
   const seen = new Set();
   return groups
@@ -3690,35 +3950,48 @@ function mergeLinks(...groups) {
     });
 }
 
-function fallbackSchoolRatings(profile, geoid, error = null) {
+function fallbackSchoolRatings(profile, geoid) {
   return {
-    source: "School ratings lookup",
-    overallGrade: "Live lookup",
-    rating: error ? "Source lookup failed" : "Open source links for current ratings",
-    summary: "Current Niche and US News source links are available for this district.",
+    source: "School district sources",
+    overallGrade: "Source links",
+    rating: "Open current third-party profiles",
+    summary: "Niche and US News source links are available for current ratings and rankings.",
     stats: [],
     externalLinks: schoolSourceLinks(profile, geoid),
     notes: [
-      "The district was not in the local cache.",
-      "Open the linked Niche and US News pages for current ratings and rankings."
+      "Official public-data fields are shown automatically when they are available from the Education Data API.",
+      "Open the linked Niche and US News pages for current third-party grades, reviews, and ranking tables."
     ]
   };
 }
 
 async function loadLiveSchoolRatings(geoid, profile) {
   if (state.liveSchoolRatingsCache.has(geoid)) return state.liveSchoolRatingsCache.get(geoid);
-  const params = new URLSearchParams({
-    geoid,
-    name: schoolRatingLookupName(profile, geoid),
-    state: schoolDistrictState(geoid, profile)
-  });
+  const request = (async () => {
+    if (SCHOOL_RATINGS_API) {
+      const params = new URLSearchParams({
+        geoid,
+        name: schoolRatingLookupName(profile, geoid),
+        state: schoolDistrictState(geoid, profile)
+      });
 
-  const request = fetchJsonWithRetry(`${SCHOOL_RATINGS_API}?${params.toString()}`, { cache: "no-cache" }, 1)
-    .then((ratings) => ({
-      ...ratings,
-      externalLinks: mergeLinks(ratings.externalLinks || [], schoolSourceLinks(profile, geoid))
-    }))
-    .catch((error) => fallbackSchoolRatings(profile, geoid, error));
+      try {
+        const ratings = await fetchJsonWithRetry(`${SCHOOL_RATINGS_API}?${params.toString()}`, { cache: "no-cache" }, 1);
+        if ((ratings.stats || []).length || ratings.sourceUrl || (ratings.usNewsResults || []).length) {
+          return {
+            ...ratings,
+            externalLinks: mergeLinks(ratings.externalLinks || [], schoolSourceLinks(profile, geoid))
+          };
+        }
+      } catch {
+        // Fall through to the public official-data API below.
+      }
+    }
+
+    const officialData = await loadOfficialSchoolDistrictData(schoolLeaid(geoid));
+    if (officialData) return buildOfficialSchoolRatings(geoid, profile, officialData);
+    return fallbackSchoolRatings(profile, geoid);
+  })().catch(() => fallbackSchoolRatings(profile, geoid));
 
   state.liveSchoolRatingsCache.set(geoid, request);
   return request;
