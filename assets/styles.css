@@ -287,6 +287,7 @@ body.panel-resizing #map {
 #search,
 #geography-type,
 #opportunity-overlay,
+#election-overlay,
 #language-select,
 #finder-sort,
 #finder-race,
@@ -303,6 +304,7 @@ body.panel-resizing #map {
 
 #geography-type,
 #opportunity-overlay,
+#election-overlay,
 #language-select,
 #finder-sort,
 #finder-race,
@@ -329,6 +331,40 @@ body.panel-resizing #map {
 
 .race-finder[hidden] {
   display: none;
+}
+
+.election-tools {
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fafb;
+}
+
+.election-tools[hidden] {
+  display: none;
+}
+
+.election-mode-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.election-mode-row button {
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  background: #fff;
+  cursor: pointer;
+}
+
+.election-mode-row button.active {
+  border-color: var(--teal);
+  color: #fff;
+  background: var(--teal);
 }
 
 .finder-heading {
@@ -968,6 +1004,7 @@ body.panel-resizing #map {
   #search,
   #geography-type,
   #opportunity-overlay,
+  #election-overlay,
   #language-select,
   #finder-sort,
   #finder-race,
@@ -978,6 +1015,7 @@ body.panel-resizing #map {
 
   #geography-type,
   #opportunity-overlay,
+  #election-overlay,
   #language-select,
   #finder-sort,
   #finder-race,
@@ -988,10 +1026,12 @@ body.panel-resizing #map {
 
   .search-results,
   .meta-row,
+  .election-tools,
   .race-finder {
     grid-column: 1 / -1;
   }
 
+  .election-tools,
   .race-finder {
     margin-top: 4px;
   }

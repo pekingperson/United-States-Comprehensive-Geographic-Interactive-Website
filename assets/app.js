@@ -49,6 +49,8 @@ const CENSUS_OPPORTUNITY_DATA = HAS_LOCAL_SERVER_PROXY
   ? "/proxy/census-opportunity/"
   : "https://www2.census.gov/ces/opportunity/";
 const POLICY_OVERLAY_URL = "data/policy-overlays.json?v=20260509-policy-overlays";
+const ELECTION_STATE_INDEX_URL = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
+const ELECTION_PRECINCT_URL = "https://int.nyt.com/newsgraphics/elections/map-data/2024/national/{state}-precincts-with-results.topojson.gz";
 const OPPORTUNITY_SUBGROUP = "rP_gP_p25_e";
 const OPPORTUNITY_FEMALE_SUBGROUP = "rP_gF_p25_e";
 const OPPORTUNITY_TRACT_SWITCH_ZOOM = 7.2;
@@ -260,6 +262,18 @@ const OPPORTUNITY_COVARIATE_CHANGE_COLUMNS = {
   d_share_foreign_born: "change_foreign_share1990_2009",
   d_frac_single_parents: "change_singlepar_pooled1990_2010"
 };
+const ELECTION_OVERLAYS = [
+  {
+    id: "president_2024",
+    title: "2024 Presidential Election",
+    source: "The New York Times 2024 presidential precinct map data",
+    sourceUrl: "https://github.com/nytimes/presidential-precinct-map-2024",
+    note:
+      "Precincts load by visible state as you pan and zoom. Alaska precinct geometry is not available in this public dataset; some states have partial or approximate precinct boundaries."
+  }
+];
+const ELECTION_BY_ID = Object.fromEntries(ELECTION_OVERLAYS.map((overlay) => [overlay.id, overlay]));
+const ELECTION_UNAVAILABLE_STATES = new Set(["AK"]);
 const OPPORTUNITY_COLOR_SCHEMES = {
   SpectralRedYellowBlue: ["#b2182b", "#ef8a62", "#fddbc7", "#f7f7f7", "#d1e5f0", "#67a9cf", "#2166ac"],
   SpectralBlueYellowRed: ["#2166ac", "#67a9cf", "#d1e5f0", "#f7f7f7", "#fddbc7", "#ef8a62", "#b2182b"],
@@ -1612,6 +1626,59 @@ const STATIC_LIEUTENANT_GOVERNORS = {
   WY: { label: "Designated successor", office: "Secretary of State", name: "Chuck Gray", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Chuck%20Gray%20by%20Gage%20Skidmore.jpg?width=225" }
 };
 
+const LIEUTENANT_GOVERNOR_OFFICIAL_URLS = {
+  AL: "https://ltgov.alabama.gov/about/",
+  AK: "https://ltgov.alaska.gov/meyer/",
+  AZ: "https://azsos.gov/adrian-fontes",
+  AR: "https://ltgovernor.arkansas.gov/meet-leslie-rutledge/",
+  CA: "https://ltg.ca.gov/about/",
+  CO: "https://ltgovernor.colorado.gov/",
+  CT: "https://portal.ct.gov/lt-governor/about-lt-governor-susan-bysiewicz",
+  DE: "https://ltgov.delaware.gov/meet-the-lieutenant-governor/",
+  FL: "https://www.flgov.com/eog/leadership/people/jay-collins",
+  GA: "https://ltgov.georgia.gov/burt-jones",
+  HI: "https://ags.hawaii.gov/blog/main/governor-green-names-keith-regan-as-acting-lieutenant-governor/",
+  ID: "https://lgo.idaho.gov/about/",
+  IL: "https://ltgov.illinois.gov/about.html",
+  IN: "https://secure.in.gov/lg/",
+  IA: "https://governor.iowa.gov/meet-governor-kim-reynolds/meet-lieutenant-governor-chris-cournoyer",
+  KS: "https://www.governor.ks.gov/about-the-office/lt-governor-david-toland",
+  KY: "https://governor.ky.gov/About-Us/Pages/Lt.-Governor-Jacqueline-Coleman.aspx",
+  LA: "https://www.crt.state.la.us/lt-governor/biography/",
+  ME: "https://mainelegislature.org/senate-offices/office-of-the-president-of-the-senate",
+  MD: "https://governor.maryland.gov/leadership/lt-governor",
+  MA: "https://www.mass.gov/orgs/governor-maura-healey-and-lt-governor-kim-driscoll",
+  MI: "https://www.michigan.gov/whitmer/ltgov",
+  MN: "https://mn.gov/governor/about-gov/peggyflanagan/",
+  MS: "https://ltgovhosemann.ms.gov/about-delbert/",
+  MO: "https://ltgov.mo.gov/biography/",
+  MT: "https://governor.mt.gov/about/LieutenantGovernor",
+  NE: "https://ltgov.nebraska.gov/about-lt-governor-joe-kelly",
+  NV: "https://ltgov.nv.gov/aboutus/aboutthe_ltgovoffice",
+  NH: "https://gc.nh.gov/senate/members/webpages/district14.aspx",
+  NJ: "https://nj.gov/governor/admin/ltgovernor",
+  NM: "https://www.governor.state.nm.us/our-leadership/lieutenant-governor/",
+  NY: "https://www.governor.ny.gov/lt-governor-antonio-delgado",
+  NC: "https://ltgov.nc.gov/about/rachel-hunt",
+  ND: "https://www.governor.nd.gov/lt-governor-michelle-strinden",
+  OH: "https://www.ohiosenate.gov/news/on-the-record/senate-confirms-a-national-champion-as-ohios-next-lt-governor-and-approves-higher-education-reforms",
+  OK: "https://oklahoma.gov/ltgovpinnell.html",
+  OR: "https://sos.oregon.gov/blue-book/Pages/state/executive/secretary-of-state-bio.aspx",
+  PA: "https://www.pa.gov/ltgovernor/lt-governor-austin-davis",
+  RI: "https://ltgov.ri.gov/about",
+  SC: "https://www.governor.sc.gov/lieutenant-governor",
+  SD: "https://news.sd.gov/news?id=news_kb_article_view&sys_id=5e24cc5b979b92507fc1b480f053af17",
+  TN: "https://wapp.capitol.tn.gov/apps/legislatorinfo/speaker?chamber=S",
+  TX: "https://www.ltgov.texas.gov/about/",
+  UT: "https://ltgovernor.utah.gov/about-lt-governor-deidre-m-henderson/",
+  VT: "https://ltgov.vermont.gov/",
+  VA: "https://www.ltgov.virginia.gov/",
+  WA: "https://www.ltgov.wa.gov/aboutdenny",
+  WV: "https://home.wvlegislature.gov/senate-president/",
+  WI: "https://evers.wi.gov/ltgov/Pages/About_LG.aspx",
+  WY: "https://sos.wyo.gov/AboutUs/AboutSecretary.aspx"
+};
+
 const state = {
   index: null,
   boundaryGeojson: null,
@@ -1646,6 +1713,16 @@ const state = {
   opportunityStyleCache: new Map(),
   policyOverlayCatalog: null,
   policyOverlayById: new Map(),
+  electionOverlay: localStorage.getItem("censusMapElectionOverlay") || "none",
+  electionLoadToken: 0,
+  electionStateIndex: null,
+  electionLoadedStates: new Set(),
+  electionLoadingStates: new Set(),
+  electionFailedStates: new Set(),
+  electionStyleCache: new Map(),
+  electionSelectedKeys: new Set(),
+  electionSelectionMode: "add",
+  electionDrawInteraction: null,
   dotsVisible: true,
   areasVisible: true,
   baseMap: localStorage.getItem("censusMapBaseMap") || "reporter",
@@ -1668,6 +1745,14 @@ const elements = {
   mapSubtitle: document.querySelector("#map-subtitle"),
   geography: document.querySelector("#geography-type"),
   opportunity: document.querySelector("#opportunity-overlay"),
+  election: document.querySelector("#election-overlay"),
+  electionTools: document.querySelector("#election-tools"),
+  electionTitle: document.querySelector("#election-tools-title"),
+  electionClear: document.querySelector("#election-clear"),
+  electionStatus: document.querySelector("#election-status"),
+  electionModeAdd: document.querySelector("#election-mode-add"),
+  electionModeSubtract: document.querySelector("#election-mode-subtract"),
+  electionModeDraw: document.querySelector("#election-mode-draw"),
   language: document.querySelector("#language-select"),
   legend: document.querySelector("#dots-legend"),
   opportunityLegend: document.querySelector("#opportunity-legend"),
@@ -1902,6 +1987,48 @@ const opportunityStateLayer = new ol.layer.VectorTile({
 });
 opportunityStateLayer.setZIndex(1.37);
 
+const electionSource = new ol.source.Vector();
+const electionLayer = new ol.layer.Vector({
+  source: electionSource,
+  minZoom: 4,
+  renderBuffer: 64,
+  updateWhileAnimating: false,
+  updateWhileInteracting: false,
+  style: electionStyleForFeature,
+  visible: false
+});
+electionLayer.setZIndex(1.44);
+
+const electionSelectionSource = new ol.source.Vector();
+const electionSelectionLayer = new ol.layer.Vector({
+  source: electionSelectionSource,
+  renderBuffer: 64,
+  updateWhileAnimating: false,
+  updateWhileInteracting: false,
+  style: [
+    new ol.style.Style({
+      fill: new ol.style.Fill({ color: "rgba(255, 193, 7, 0.16)" }),
+      stroke: new ol.style.Stroke({ color: "rgba(255, 255, 255, 0.92)", width: 3.8 })
+    }),
+    new ol.style.Style({
+      stroke: new ol.style.Stroke({ color: "#b7791f", width: 2 })
+    })
+  ],
+  visible: false
+});
+electionSelectionLayer.setZIndex(2.75);
+
+const electionDrawSource = new ol.source.Vector();
+const electionDrawLayer = new ol.layer.Vector({
+  source: electionDrawSource,
+  style: new ol.style.Style({
+    fill: new ol.style.Fill({ color: "rgba(18, 112, 120, 0.12)" }),
+    stroke: new ol.style.Stroke({ color: "#127078", width: 2, lineDash: [8, 5] })
+  }),
+  visible: false
+});
+electionDrawLayer.setZIndex(3.2);
+
 const urbanSource = new ol.source.Vector();
 
 urbanSource.on("addfeature", (event) => {
@@ -1934,7 +2061,20 @@ selectedLayer.setZIndex(3);
 
 const map = new ol.Map({
   target: "map",
-  layers: [baseLayer, googleSatelliteLayer, dotsLayer, opportunityCountyLayer, opportunityTractLayer, opportunityStateLayer, labelLayer, urbanLayer, selectedLayer],
+  layers: [
+    baseLayer,
+    googleSatelliteLayer,
+    dotsLayer,
+    opportunityCountyLayer,
+    opportunityTractLayer,
+    opportunityStateLayer,
+    electionLayer,
+    labelLayer,
+    urbanLayer,
+    selectedLayer,
+    electionSelectionLayer,
+    electionDrawLayer
+  ],
   maxTilesLoading: 48,
   interactions: defaultInteractions({ mouseWheelZoom: false }).extend([
     new ol.interaction.MouseWheelZoom({ duration: 120, timeout: 40 })
@@ -1951,9 +2091,23 @@ window.urbanAreaApp = {
   map,
   geographyTypes: GEOGRAPHY_TYPES,
   opportunityOverlays: OPPORTUNITY_OVERLAYS,
+  electionOverlays: ELECTION_OVERLAYS,
   policyOverlays: () => policyOverlays(),
-  layers: { baseLayer, googleSatelliteLayer, dotsLayer, labelLayer, opportunityCountyLayer, opportunityTractLayer, opportunityStateLayer, selectedLayer, urbanLayer },
-  sources: { selectedSource, urbanSource },
+  layers: {
+    baseLayer,
+    googleSatelliteLayer,
+    dotsLayer,
+    labelLayer,
+    opportunityCountyLayer,
+    opportunityTractLayer,
+    opportunityStateLayer,
+    electionLayer,
+    electionSelectionLayer,
+    electionDrawLayer,
+    selectedLayer,
+    urbanLayer
+  },
+  sources: { selectedSource, urbanSource, electionSource, electionSelectionSource, electionDrawSource },
   state
 };
 
@@ -2557,6 +2711,289 @@ function statePolicyStyleForFeature(feature) {
   return state.opportunityStyleCache.get(cacheKey);
 }
 
+function isElectionActive() {
+  return state.electionOverlay !== "none" && Boolean(ELECTION_BY_ID[state.electionOverlay]);
+}
+
+function electionWinner(feature) {
+  const dem = Number(feature?.get("votes_dem") || 0);
+  const rep = Number(feature?.get("votes_rep") || 0);
+  if (dem > rep) return "Democratic";
+  if (rep > dem) return "Republican";
+  return "Tie";
+}
+
+function electionWinnerColor(winner, margin = 0) {
+  const alpha = Math.max(0.28, Math.min(0.72, 0.28 + Math.abs(margin) * 0.62));
+  if (winner === "Democratic") return `rgba(49, 105, 181, ${alpha})`;
+  if (winner === "Republican") return `rgba(197, 69, 64, ${alpha})`;
+  return "rgba(116, 125, 136, 0.34)";
+}
+
+function electionStyleForFeature(feature) {
+  const margin = Number(feature.get("pct_dem_lead") || 0);
+  const winner = electionWinner(feature);
+  const cacheKey = `${winner}:${Math.round(Math.abs(margin) * 20)}`;
+  if (!state.electionStyleCache.has(cacheKey)) {
+    state.electionStyleCache.set(
+      cacheKey,
+      new ol.style.Style({
+        fill: new ol.style.Fill({ color: electionWinnerColor(winner, margin) }),
+        stroke: new ol.style.Stroke({ color: "rgba(255, 255, 255, 0.32)", width: 0.35 })
+      })
+    );
+  }
+  return state.electionStyleCache.get(cacheKey);
+}
+
+function electionFeatureKey(feature) {
+  const props = feature?.getProperties?.() || {};
+  return `${props.state || ""}:${props.GEOID || feature?.getId?.() || ""}`;
+}
+
+function electionVotes(feature) {
+  const dem = Number(feature?.get("votes_dem") || 0);
+  const rep = Number(feature?.get("votes_rep") || 0);
+  const total = Number(feature?.get("votes_total") || dem + rep || 0);
+  return { dem, rep, total };
+}
+
+function electionVoteShare(votes, key) {
+  return votes.total > 0 ? (votes[key] / votes.total) * 100 : null;
+}
+
+function electionMarginText(feature) {
+  const margin = Number(feature?.get("pct_dem_lead"));
+  if (!Number.isFinite(margin)) return tr("Not available");
+  const party = margin > 0 ? "Democratic" : margin < 0 ? "Republican" : "Tie";
+  return party === "Tie" ? "Tie" : `${party} +${decimal(Math.abs(margin) * 100, 1)}`;
+}
+
+function electionPrecinctName(feature) {
+  return feature?.get("GEOID") || "Precinct";
+}
+
+function selectedElectionSummary() {
+  const features = electionSelectionSource.getFeatures();
+  const totals = features.reduce(
+    (sum, feature) => {
+      const votes = electionVotes(feature);
+      sum.dem += votes.dem;
+      sum.rep += votes.rep;
+      sum.total += votes.total;
+      return sum;
+    },
+    { dem: 0, rep: 0, total: 0 }
+  );
+  return { count: features.length, ...totals };
+}
+
+function updateElectionStatus(message = "") {
+  if (!elements.electionStatus) return;
+  const loaded = [...state.electionLoadedStates].sort().join(", ") || "none";
+  const loading = [...state.electionLoadingStates].sort().join(", ");
+  const failed = [...state.electionFailedStates].sort().join(", ");
+  const selected = selectedElectionSummary();
+  const lead =
+    selected.total > 0
+      ? `Selected: ${number(selected.count)} precincts, ${number(selected.total)} votes, ${electionMarginTextFromVotes(selected)}.`
+      : "No precincts selected.";
+  elements.electionStatus.textContent = [
+    message,
+    loading ? `Loading ${loading}.` : "",
+    `Loaded states: ${loaded}.`,
+    failed ? `Unavailable: ${failed}.` : "",
+    lead
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function electionMarginTextFromVotes(votes) {
+  if (!votes.total) return "no votes";
+  const diff = votes.dem - votes.rep;
+  if (diff === 0) return "tie";
+  const party = diff > 0 ? "Democratic" : "Republican";
+  return `${party} +${decimal((Math.abs(diff) / votes.total) * 100, 1)}`;
+}
+
+function setElectionFeatureSelected(feature, selected = true) {
+  const key = electionFeatureKey(feature);
+  if (!key || key === ":") return;
+  if (!selected) {
+    state.electionSelectedKeys.delete(key);
+    const existing = electionSelectionSource.getFeatureById(key);
+    if (existing) electionSelectionSource.removeFeature(existing);
+    updateElectionStatus();
+    return;
+  }
+  if (state.electionSelectedKeys.has(key)) {
+    updateElectionStatus();
+    return;
+  }
+  const clone = feature.clone();
+  clone.setId(key);
+  clone.setProperties(feature.getProperties());
+  state.electionSelectedKeys.add(key);
+  electionSelectionSource.addFeature(clone);
+  updateElectionStatus();
+}
+
+function clearElectionSelection() {
+  state.electionSelectedKeys.clear();
+  electionSelectionSource.clear(true);
+  updateElectionStatus();
+}
+
+function renderElectionPrecinctProfile(feature) {
+  const votes = electionVotes(feature);
+  const winner = electionWinner(feature);
+  const selected = state.electionSelectedKeys.has(electionFeatureKey(feature));
+  const overlay = ELECTION_BY_ID[state.electionOverlay] || ELECTION_OVERLAYS[0];
+  const source = overlay?.sourceUrl || "";
+  const sourceLink = source
+    ? `<a href="${escapeHtml(source)}" target="_blank" rel="noreferrer">Open data source</a>`
+    : "";
+  elements.profile.innerHTML = `
+    <section class="profile-header">
+      <h2>${escapeHtml(electionPrecinctName(feature))}</h2>
+      <p>${escapeHtml(overlay.title)} precinct result</p>
+      ${sourceLink ? `<div class="profile-actions">${sourceLink}</div>` : ""}
+    </section>
+    <section class="section">
+      <h3>Election result</h3>
+      <div class="stat-grid">
+        ${stat("Winner", escapeHtml(winner), electionMarginText(feature))}
+        ${stat("Total votes", escapeHtml(number(votes.total)), feature.get("official_boundary") === false ? "Approximate boundary" : "Official boundary")}
+        ${stat("Democratic votes", escapeHtml(number(votes.dem)), electionVoteShare(votes, "dem") == null ? "" : pct(electionVoteShare(votes, "dem")))}
+        ${stat("Republican votes", escapeHtml(number(votes.rep)), electionVoteShare(votes, "rep") == null ? "" : pct(electionVoteShare(votes, "rep")))}
+      </div>
+    </section>
+    <section class="section">
+      <h3>Selection</h3>
+      <div class="stat-grid">
+        ${stat("Selection status", escapeHtml(selected ? "Highlighted" : "Not highlighted"), state.electionSelectionMode)}
+        ${stat("Precinct state", escapeHtml(feature.get("state") || "Not available"))}
+      </div>
+      <p class="source-note">${escapeHtml(overlay.note)}</p>
+    </section>
+  `;
+}
+
+async function fetchGzipJson(url) {
+  const response = await fetch(url, { cache: "force-cache" });
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+  if (!("DecompressionStream" in window)) {
+    throw new Error("This browser cannot decompress the election precinct files.");
+  }
+  const stream = response.body.pipeThrough(new DecompressionStream("gzip"));
+  return new Response(stream).json();
+}
+
+async function loadElectionStateIndex() {
+  if (state.electionStateIndex) return state.electionStateIndex;
+  if (!window.topojson?.feature) throw new Error("TopoJSON support did not load");
+  const topo = await fetchJsonWithRetry(ELECTION_STATE_INDEX_URL, { cache: "force-cache" }, 2);
+  const geojson = window.topojson.feature(topo, topo.objects.states);
+  const features = format.readFeatures(geojson, { featureProjection: map.getView().getProjection() });
+  state.electionStateIndex = features
+    .map((feature) => {
+      const fips = String(feature.getId() || feature.get("id") || "").padStart(2, "0");
+      const abbr = STATE_FIPS_TO_ABBR[fips];
+      return abbr ? { abbr, fips, extent: feature.getGeometry().getExtent() } : null;
+    })
+    .filter(Boolean);
+  return state.electionStateIndex;
+}
+
+async function loadElectionState(abbr) {
+  if (!abbr || state.electionLoadedStates.has(abbr) || state.electionLoadingStates.has(abbr)) return;
+  if (ELECTION_UNAVAILABLE_STATES.has(abbr)) {
+    state.electionFailedStates.add(abbr);
+    updateElectionStatus(`${abbr} precinct geometry is not available in this public dataset.`);
+    return;
+  }
+  state.electionLoadingStates.add(abbr);
+  updateElectionStatus();
+  try {
+    const topo = await fetchGzipJson(ELECTION_PRECINCT_URL.replace("{state}", abbr));
+    const objectName = Object.keys(topo.objects || {})[0];
+    if (!objectName) throw new Error("No precinct object in topology");
+    const geojson = window.topojson.feature(topo, topo.objects[objectName]);
+    const features = format.readFeatures(geojson, { featureProjection: map.getView().getProjection() });
+    for (const feature of features) {
+      const key = electionFeatureKey(feature);
+      if (key && key !== ":") feature.setId(key);
+    }
+    electionSource.addFeatures(features);
+    state.electionLoadedStates.add(abbr);
+  } catch (error) {
+    console.warn(`Election precinct data failed for ${abbr}`, error);
+    state.electionFailedStates.add(abbr);
+  } finally {
+    state.electionLoadingStates.delete(abbr);
+    updateElectionStatus();
+  }
+}
+
+async function updateElectionVisibleStates() {
+  if (!isElectionActive()) return;
+  const token = ++state.electionLoadToken;
+  const index = await loadElectionStateIndex();
+  if (token !== state.electionLoadToken) return;
+  const extent = map.getView().calculateExtent(map.getSize());
+  const visible = index.filter((item) => ol.extent.intersects(extent, item.extent)).map((item) => item.abbr);
+  if (visible.length > 6 && map.getView().getZoom() < 5.2) {
+    updateElectionStatus("Zoom in to load precincts for the visible states.");
+    return;
+  }
+  const nextStates = visible.filter((abbr) => !state.electionLoadedStates.has(abbr) && !state.electionLoadingStates.has(abbr));
+  await Promise.all(nextStates.slice(0, 8).map((abbr) => loadElectionState(abbr)));
+  updateElectionStatus();
+}
+
+function applyElectionSelectionMode() {
+  const mode = state.electionSelectionMode;
+  for (const button of [elements.electionModeAdd, elements.electionModeSubtract, elements.electionModeDraw]) {
+    if (!button) continue;
+    const active = button.dataset.mode === mode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  }
+  if (state.electionDrawInteraction) {
+    map.removeInteraction(state.electionDrawInteraction);
+    state.electionDrawInteraction = null;
+  }
+  electionDrawLayer.setVisible(isElectionActive() && mode === "draw");
+  if (!isElectionActive() || mode !== "draw") return;
+
+  state.electionDrawInteraction = new ol.interaction.Draw({
+    source: electionDrawSource,
+    type: "Polygon"
+  });
+  state.electionDrawInteraction.on("drawend", (event) => {
+    const extent = event.feature.getGeometry().getExtent();
+    electionSource.forEachFeatureInExtent(extent, (feature) => {
+      if (feature.getGeometry()?.intersectsExtent(extent)) setElectionFeatureSelected(feature, true);
+    });
+    setTimeout(() => electionDrawSource.clear(true), 0);
+  });
+  map.addInteraction(state.electionDrawInteraction);
+}
+
+function setElectionSelectionMode(mode) {
+  state.electionSelectionMode = ["add", "subtract", "draw"].includes(mode) ? mode : "add";
+  applyElectionSelectionMode();
+  updateElectionStatus();
+}
+
+function handleElectionFeatureClick(feature) {
+  if (!feature) return;
+  if (state.electionSelectionMode === "subtract") setElectionFeatureSelected(feature, false);
+  else if (state.electionSelectionMode === "add") setElectionFeatureSelected(feature, true);
+  renderElectionPrecinctProfile(feature);
+}
+
 function formatOpportunityValue(value, overlay) {
   if (!Number.isFinite(value)) return tr("Not available");
   const formatType = overlay?.textFormat || "";
@@ -2930,11 +3367,13 @@ async function setOpportunityOverlay(id) {
       renderOpportunityLegend();
       updateOpportunityLayerVisibility();
       if (!state.selectedGeoid) renderHomeProfile();
+      if (isElectionActive()) updateElectionVisibleStates().catch(() => {});
     } catch (error) {
       if (token !== state.opportunityLoadToken) return;
       console.warn("Opportunity Atlas overlay failed to load", error);
       renderOpportunityLegend("error", error.message);
       if (!state.selectedGeoid) renderHomeProfile();
+      if (isElectionActive()) updateElectionVisibleStates().catch(() => {});
     }
   }
 
@@ -3105,9 +3544,11 @@ function staticLieutenantGovernorForState(stateAbbr) {
   const key = String(stateAbbr || "").trim().toUpperCase();
   const official = STATIC_LIEUTENANT_GOVERNORS[key];
   if (!official) return null;
+  const officialUrl = LIEUTENANT_GOVERNOR_OFFICIAL_URLS[key];
   return {
     ...official,
     imageFallbacks: official.imageFallbacks || [],
+    links: officialUrl ? [{ label: "Official website", url: officialUrl }] : [],
     source: "Bundled current lieutenant governor fallback"
   };
 }
@@ -3937,6 +4378,15 @@ function buildOfficialSchoolRatings(geoid, profile, officialData) {
   };
 }
 
+function mergeSchoolStats(primary = [], secondary = []) {
+  const seen = new Set();
+  return [...primary, ...secondary].filter((item) => {
+    if (!item?.label || seen.has(item.label)) return false;
+    seen.add(item.label);
+    return true;
+  });
+}
+
 function mergeLinks(...groups) {
   const seen = new Set();
   return groups
@@ -3978,9 +4428,20 @@ async function loadLiveSchoolRatings(geoid, profile) {
       try {
         const ratings = await fetchJsonWithRetry(`${SCHOOL_RATINGS_API}?${params.toString()}`, { cache: "no-cache" }, 1);
         if ((ratings.stats || []).length || ratings.sourceUrl || (ratings.usNewsResults || []).length) {
+          const officialData = await loadOfficialSchoolDistrictData(schoolLeaid(geoid));
+          const officialRatings = officialData ? buildOfficialSchoolRatings(geoid, profile, officialData) : null;
           return {
             ...ratings,
-            externalLinks: mergeLinks(ratings.externalLinks || [], schoolSourceLinks(profile, geoid))
+            stats: mergeSchoolStats(ratings.stats || [], officialRatings?.stats || []),
+            offerings: ratings.offerings?.length ? ratings.offerings : officialRatings?.offerings || [],
+            financeBreakdown: ratings.financeBreakdown?.length ? ratings.financeBreakdown : officialRatings?.financeBreakdown || [],
+            topSchools: ratings.topSchools?.length ? ratings.topSchools : officialRatings?.topSchools || [],
+            contact: {
+              ...(officialRatings?.contact || {}),
+              ...(ratings.contact || {})
+            },
+            externalLinks: mergeLinks(ratings.externalLinks || [], officialRatings?.externalLinks || [], schoolSourceLinks(profile, geoid)),
+            notes: [...(ratings.notes || []), ...(officialRatings?.notes || [])]
           };
         }
       } catch {
@@ -5120,6 +5581,10 @@ function renderProfile(geoid, profile, extras = {}) {
 }
 
 function renderHomeProfile() {
+  if (isElectionActive()) {
+    renderElectionHomeProfile();
+    return;
+  }
   const type = activeGeography();
   const overlay = OPPORTUNITY_BY_ID[state.opportunityOverlay] || state.policyOverlayById.get(state.opportunityOverlay) || null;
   const overlayLabel = overlay?.title || tr("Off");
@@ -5652,7 +6117,7 @@ function populateOpportunitySelect() {
     const rows = OPPORTUNITY_OVERLAYS.filter((overlay) => overlay.type === type)
       .map((overlay) => `<option value="${overlay.id}">${escapeHtml(overlay.title)}</option>`)
       .join("");
-    options.push(`<optgroup label="${escapeHtml(label)}">${rows}</optgroup>`);
+    if (rows) options.push(`<optgroup label="${escapeHtml(label)}">${rows}</optgroup>`);
   }
   const policyGroups = new Map();
   for (const overlay of policyOverlays()) {
@@ -5664,10 +6129,58 @@ function populateOpportunitySelect() {
     const rows = overlays
       .map((overlay) => `<option value="${escapeHtml(overlay.id)}">${escapeHtml(overlay.title)}</option>`)
       .join("");
-    options.push(`<optgroup label="${escapeHtml(group)}">${rows}</optgroup>`);
+    if (rows) options.push(`<optgroup label="${escapeHtml(group)}">${rows}</optgroup>`);
   }
   elements.opportunity.innerHTML = options.join("");
   elements.opportunity.value = state.opportunityOverlay;
+}
+
+function populateElectionSelect() {
+  const options = [
+    '<option value="none">Off</option>',
+    ...ELECTION_OVERLAYS.map((overlay) => `<option value="${escapeHtml(overlay.id)}">${escapeHtml(overlay.title)}</option>`)
+  ];
+  elements.election.innerHTML = options.join("");
+  elements.election.value = state.electionOverlay;
+}
+
+function renderElectionHomeProfile() {
+  const overlay = ELECTION_BY_ID[state.electionOverlay];
+  if (!overlay || state.selectedGeoid) return;
+  const selected = selectedElectionSummary();
+  elements.profile.innerHTML = `
+    <div class="empty-state">
+      <h2>${escapeHtml(overlay.title)}</h2>
+      <p>Pan or zoom to a state, then click precincts to see vote totals and party results. Use Add, Subtract, or Draw to highlight precinct groups.</p>
+      <p class="source-note">${escapeHtml(overlay.note)}</p>
+      <p class="source-note">Source: <a href="${escapeHtml(overlay.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(overlay.source)}</a>.</p>
+      <p class="source-note">${escapeHtml(selected.count ? `${number(selected.count)} highlighted precincts, ${number(selected.total)} votes, ${electionMarginTextFromVotes(selected)}.` : "No precincts highlighted yet.")}</p>
+    </div>
+  `;
+}
+
+function setElectionOverlay(id) {
+  state.electionOverlay = ELECTION_BY_ID[id] ? id : "none";
+  localStorage.setItem("censusMapElectionOverlay", state.electionOverlay);
+  elements.election.value = state.electionOverlay;
+  const active = isElectionActive();
+  electionLayer.setVisible(active);
+  electionSelectionLayer.setVisible(active);
+  electionDrawLayer.setVisible(active && state.electionSelectionMode === "draw");
+  elements.electionTools.hidden = !active;
+  applyElectionSelectionMode();
+  if (!active) {
+    state.electionLoadToken += 1;
+    updateElectionStatus("Election map is off.");
+    if (!state.selectedGeoid) renderHomeProfile();
+    return;
+  }
+  if (!state.selectedGeoid) renderElectionHomeProfile();
+  updateElectionStatus("Loading visible precincts.");
+  updateElectionVisibleStates().catch((error) => {
+    console.warn("Election precinct loading failed", error);
+    updateElectionStatus(error.message);
+  });
 }
 
 function populateLanguageSelect() {
@@ -5702,14 +6215,17 @@ function applyLanguageChrome() {
   elements.language.value = state.language;
   document.querySelector('label[for="geography-type"]').textContent = tr("Boundary type");
   document.querySelector('label[for="opportunity-overlay"]').textContent = tr("Opportunity Atlas overlay");
+  document.querySelector('label[for="election-overlay"]').textContent = tr("Election maps");
   document.querySelector('label[for="language-select"]').textContent = tr("Language");
   document.querySelector('label[for="base-map"] span').textContent = tr("Base");
   document.querySelector('label[for="finder-sort"]').textContent = tr("Sort urban areas by");
   document.querySelector('label[for="finder-race"]').textContent = tr("Race or ethnicity");
   document.querySelector('label[for="finder-min-pop"] span').textContent = tr("Minimum population");
   document.querySelector('label[for="finder-limit"] span').textContent = tr("Results");
-  document.querySelector(".finder-heading h2").textContent = tr("Move Finder");
+  if (elements.electionTitle) elements.electionTitle.textContent = tr("Election selection");
+  document.querySelector(".race-finder .finder-heading h2").textContent = tr("Move Finder");
   elements.finderReset.textContent = tr("Reset");
+  elements.electionClear.textContent = tr("Clear");
   elements.listTitle.textContent = tr("Directory");
   document.querySelector(".map-toolbar").setAttribute("aria-label", tr("Map controls"));
   elements.zoomUs.title = tr("Zoom to the United States");
@@ -5756,6 +6272,7 @@ function setLanguage(code) {
   localStorage.setItem("censusMapLanguage", state.language);
   populateGeographySelect();
   populateFinderControls();
+  populateElectionSelect();
   applyLanguageChrome();
   updateGeographyChrome();
   renderOpportunityLegend();
@@ -5807,6 +6324,17 @@ function resetView() {
 }
 
 map.on("singleclick", (event) => {
+  if (isElectionActive() && state.electionSelectionMode !== "draw") {
+    const electionFeature = map.forEachFeatureAtPixel(event.pixel, (item) => item, {
+      layerFilter: (layer) => layer === electionLayer || layer === electionSelectionLayer,
+      hitTolerance: 4
+    });
+    if (electionFeature) {
+      handleElectionFeatureClick(electionFeature);
+      return;
+    }
+  }
+
   const boundaryLayer = visibleBoundaryLayer();
   const feature = map.forEachFeatureAtPixel(
     event.pixel,
@@ -5823,6 +6351,25 @@ map.on("singleclick", (event) => {
 
 map.on("pointermove", (event) => {
   if (event.dragging) return;
+
+  if (isElectionActive()) {
+    const electionFeature = map.forEachFeatureAtPixel(event.pixel, (item) => item, {
+      layerFilter: (layer) => layer === electionLayer || layer === electionSelectionLayer,
+      hitTolerance: 4
+    });
+    if (electionFeature) {
+      const votes = electionVotes(electionFeature);
+      map.getTargetElement().style.cursor = state.electionSelectionMode === "draw" ? "crosshair" : "pointer";
+      elements.hover.innerHTML = `
+        <strong>${escapeHtml(electionPrecinctName(electionFeature))}</strong>
+        <span>${escapeHtml(`${electionWinner(electionFeature)} ${electionMarginText(electionFeature)} - ${number(votes.total)} votes`)}</span>
+      `;
+      elements.hover.style.left = `${event.pixel[0] + 14}px`;
+      elements.hover.style.top = `${event.pixel[1] + 14}px`;
+      elements.hover.hidden = false;
+      return;
+    }
+  }
 
   const boundaryLayer = visibleBoundaryLayer();
   const feature = map.forEachFeatureAtPixel(
@@ -5855,6 +6402,7 @@ map.on("pointermove", (event) => {
 
 map.on("moveend", () => {
   if (state.baseMap === "google3d") syncGoogle3dCamera(0.25);
+  if (isElectionActive()) updateElectionVisibleStates().catch(() => {});
 });
 
 function selectButtonGeography(button) {
@@ -5879,6 +6427,11 @@ elements.searchResults?.addEventListener("click", handleGeographyListClick);
 elements.list.addEventListener("click", handleGeographyListClick);
 elements.geography.addEventListener("change", () => setActiveGeography(elements.geography.value));
 elements.opportunity.addEventListener("change", () => setOpportunityOverlay(elements.opportunity.value));
+elements.election.addEventListener("change", () => setElectionOverlay(elements.election.value));
+elements.electionClear.addEventListener("click", clearElectionSelection);
+elements.electionModeAdd.addEventListener("click", () => setElectionSelectionMode("add"));
+elements.electionModeSubtract.addEventListener("click", () => setElectionSelectionMode("subtract"));
+elements.electionModeDraw.addEventListener("click", () => setElectionSelectionMode("draw"));
 elements.language.addEventListener("change", () => setLanguage(elements.language.value));
 elements.finderSort.addEventListener("change", () => setFinderSetting("sort", elements.finderSort.value));
 elements.finderRace.addEventListener("change", () => setFinderSetting("race", elements.finderRace.value));
@@ -5924,6 +6477,7 @@ async function init() {
   state.finderRace = validFinderRace(state.finderRace);
   state.finderMinPopulation = validFinderMinPopulation(state.finderMinPopulation);
   state.finderLimit = validFinderLimit(state.finderLimit);
+  if (!ELECTION_BY_ID[state.electionOverlay]) state.electionOverlay = "none";
   initializePanelResize();
   elements.baseMap.value = state.baseMap;
   populateGeographySelect();
@@ -5935,8 +6489,10 @@ async function init() {
     console.warn("Policy overlay catalog failed to load", error);
   }
   populateOpportunitySelect();
+  populateElectionSelect();
   applyLanguageChrome();
   renderOpportunityLegend();
+  setElectionOverlay(state.electionOverlay);
   elements.toggleDots.setAttribute("aria-pressed", "true");
   elements.toggleAreas.setAttribute("aria-pressed", "true");
   setBaseMap(state.baseMap, { persist: false }).catch((error) => {
