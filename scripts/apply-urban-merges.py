@@ -88,6 +88,7 @@ MERGE_GROUPS = [
 ]
 
 DISPLAY_NAME_OVERRIDES = {
+    "40000US51755": "Louisville Urban Area",
     "40000US61273": "Nashville Urban Area",
 }
 
