@@ -1451,7 +1451,12 @@ const STATE_FIPS_TO_ABBR = {
   "53": "WA",
   "54": "WV",
   "55": "WI",
-  "56": "WY"
+  "56": "WY",
+  "60": "AS",
+  "66": "GU",
+  "69": "MP",
+  "72": "PR",
+  "78": "VI"
 };
 const STATE_ABBR_TO_NAME = {
   AL: "Alabama",
@@ -1504,8 +1509,14 @@ const STATE_ABBR_TO_NAME = {
   WA: "Washington",
   WV: "West Virginia",
   WI: "Wisconsin",
-  WY: "Wyoming"
+  WY: "Wyoming",
+  AS: "American Samoa",
+  GU: "Guam",
+  MP: "Northern Mariana Islands",
+  PR: "Puerto Rico",
+  VI: "U.S. Virgin Islands"
 };
+const NON_VOTING_CONGRESSIONAL_STATES = new Set(["AS", "DC", "GU", "MP", "PR", "VI"]);
 
 const STATIC_GOVERNORS = {
   AL: { name: "Kay Ivey", party: "Republican", image: "https://commons.wikimedia.org/wiki/Special:FilePath/Governor%20Kay%20Ivey%202017%20(cropped).jpg?width=225" },
@@ -3808,7 +3819,7 @@ function geographyExtraSection(geoid, profile, extras) {
       const photos = congressionalPhotoUrls(member);
       cards.unshift(
         legislatorCard({
-          label: "Representative",
+          label: congressionalOfficeLabel(term),
           name: representativeName(member),
           party: term.party,
           district: term.state && term.district != null ? `${term.state}-${String(term.district).padStart(2, "0")}` : "",
@@ -4864,10 +4875,19 @@ async function enrichMayorWithOnlineParty(mayor, geoid, profile) {
 function parseCongressionalGeoid(geoid) {
   const id = String(geoid || "").replace("50000US", "");
   if (id.length < 4) return null;
+  const stateAbbr = STATE_FIPS_TO_ABBR[id.slice(0, 2)];
+  const censusDistrict = Number(id.slice(2));
   return {
-    state: STATE_FIPS_TO_ABBR[id.slice(0, 2)],
-    district: Number(id.slice(2))
+    state: stateAbbr,
+    district: NON_VOTING_CONGRESSIONAL_STATES.has(stateAbbr) && censusDistrict >= 90 ? 0 : censusDistrict,
+    censusDistrict
   };
+}
+
+function congressionalOfficeLabel(term = {}) {
+  if (term.state === "PR") return "Resident Commissioner";
+  if (NON_VOTING_CONGRESSIONAL_STATES.has(term.state)) return "Delegate";
+  return "Representative";
 }
 
 function getCongressRepresentative(geoid) {
