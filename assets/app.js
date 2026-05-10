@@ -5663,7 +5663,7 @@ function renderHomeProfile() {
 
   elements.profile.innerHTML = `
     <div class="profile-header home-profile">
-      <h2>${escapeHtml(tr("Map home"))}</h2>
+      <h2>${escapeHtml(tr("Map Home"))}</h2>
       <p class="profile-subtitle">${escapeHtml(translatedTypeLabel(type))} - ${escapeHtml(release)}</p>
       <div class="headline-grid">
         ${stat("Boundary type", escapeHtml(translatedTypeLabel(type)), tr("None selected"))}
