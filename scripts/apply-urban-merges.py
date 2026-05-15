@@ -190,6 +190,19 @@ MERGE_GROUPS = [
             "40000US51175",  # Longmont
         ],
     },
+    {
+        "geoid": "40000US78499",
+        "tigerGeoid": "78499",
+        "name": "Salt Lake City Urban Area",
+        "components": [
+            "40000US78499",  # Salt Lake City
+            "40000US72559",  # Provo--Orem
+            "40000US64945",  # Ogden--Layton
+            "40000US25480",  # Eagle Mountain
+            "40000US10243",  # Brigham City
+            "40000US68170",  # Payson--Santaquin
+        ],
+    },
 ]
 
 DISPLAY_NAME_OVERRIDES = {
