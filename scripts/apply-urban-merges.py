@@ -155,6 +155,23 @@ MERGE_GROUPS = [
             "40000US97642",  # Yelm
         ],
     },
+    {
+        "geoid": "40000US69184",
+        "tigerGeoid": "69184",
+        "name": "Phoenix Urban Area",
+        "components": [
+            "40000US69184",  # Phoenix--Mesa--Scottsdale
+            "40000US69192",  # Phoenix West--Goodyear--Avondale
+            "40000US68499",  # Peoria
+            "40000US11134",  # Buckeye
+            "40000US11139",  # Buckeye North
+            "40000US33960",  # Goodyear South
+            "40000US30073",  # Florence West
+            "40000US29980",  # Florence East
+            "40000US75092",  # Rio Verde
+            "40000US33742",  # Gold Canyon
+        ],
+    },
 ]
 
 DISPLAY_NAME_OVERRIDES = {
