@@ -180,6 +180,14 @@ MERGE_GROUPS = [
         "components": [
             "40000US23527",  # Denver--Aurora
             "40000US46126",  # Lafayette--Erie--Louisville
+            "40000US09298",  # Boulder
+            "40000US30755",  # Fort Lupton
+            "40000US76528",  # Roxborough Park
+            "40000US28441",  # Evergreen
+            "40000US14563",  # Castle Rock
+            "40000US87269",  # The Pinery
+            "40000US29775",  # Firestone--Frederick
+            "40000US51175",  # Longmont
         ],
     },
 ]
