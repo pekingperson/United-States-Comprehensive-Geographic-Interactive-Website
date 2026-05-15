@@ -127,6 +127,34 @@ MERGE_GROUPS = [
             "40000US96130",  # Winder
         ],
     },
+    {
+        "geoid": "40000US77770",
+        "tigerGeoid": "77770",
+        "name": "St. Louis Urban Area",
+        "components": [
+            "40000US77770",  # St. Louis
+            "40000US01765",  # Alton
+        ],
+    },
+    {
+        "geoid": "40000US80389",
+        "tigerGeoid": "80389",
+        "name": "Seattle Urban Area",
+        "components": [
+            "40000US80389",  # Seattle--Tacoma
+            "40000US09946",  # Bremerton
+            "40000US65242",  # Olympia--Lacey
+            "40000US55333",  # Marysville
+            "40000US58369",  # Monroe
+            "40000US25237",  # Duvall
+            "40000US82675",  # Snoqualmie
+            "40000US63514",  # North Bend
+            "40000US85573",  # Sultan
+            "40000US34470",  # Granite Falls
+            "40000US81415",  # Shelton
+            "40000US97642",  # Yelm
+        ],
+    },
 ]
 
 DISPLAY_NAME_OVERRIDES = {
