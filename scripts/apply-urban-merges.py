@@ -32,6 +32,7 @@ MERGE_GROUPS = [
             "40000US50533",  # Livermore--Pleasanton--Dublin
             "40000US90028",  # Vallejo
             "40000US02683",  # Antioch
+            "40000US36271",  # Half Moon Bay
         ],
     },
     {
@@ -123,6 +124,7 @@ MERGE_GROUPS = [
         "components": [
             "40000US03817",  # Atlanta
             "40000US32194",  # Gainesville
+            "40000US96130",  # Winder
         ],
     },
 ]
