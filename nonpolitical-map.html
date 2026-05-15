@@ -3,21 +3,22 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Urban Area Census Dots Map</title>
+    <meta name="robots" content="noindex,nofollow">
+    <title>Nonpolitical Census Dots Map</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.2.1/ol.css">
-    <link rel="stylesheet" href="assets/styles.css?v=20260510-election-overlay-2">
+    <link rel="stylesheet" href="assets/styles.css?v=20260510-nonpolitical-map">
   </head>
-  <body>
+  <body class="nonpolitical-map" data-app-variant="nonpolitical">
     <main class="app-shell">
-      <section class="map-pane" aria-label="Interactive map">
+      <section class="map-pane" aria-label="Interactive nonpolitical map">
         <div id="map"></div>
         <div id="google-3d-view" class="google-3d-view" hidden></div>
         <div class="map-title">
-          <h1 id="map-heading">Urban Areas</h1>
-          <p id="map-subtitle">Census Reporter profiles over Census Dots population tiles</p>
+          <h1 id="map-heading">Geographic Areas</h1>
+          <p id="map-subtitle">Nonpolitical Census Reporter profiles over Census Dots population tiles</p>
         </div>
         <div class="map-toolbar" aria-label="Map controls">
-          <label class="map-select-control" for="base-map">
+          <label class="map-select-control nonpolitical-hidden" for="base-map" hidden>
             <span>Base</span>
             <select id="base-map">
               <option value="reporter">Census Reporter</option>
@@ -27,14 +28,14 @@
           </label>
           <button id="zoom-us" type="button" title="Zoom to the United States">US</button>
           <button id="toggle-dots" type="button" title="Show or hide Census Dots background">Dots</button>
-          <button id="toggle-areas" type="button" title="Show or hide urban area boundaries">Areas</button>
+          <button id="toggle-areas" type="button" title="Show or hide boundaries">Boundaries</button>
         </div>
         <div id="google-map-status" class="map-status" hidden></div>
         <div id="dots-legend" class="legend-block map-legend" aria-label="Census Dots legend"></div>
         <div id="hover-card" class="hover-card" hidden></div>
       </section>
 
-      <aside class="side-panel" aria-label="Urban area details">
+      <aside class="side-panel" aria-label="Geographic area details">
         <button
           id="panel-resizer"
           class="panel-resizer"
@@ -45,11 +46,15 @@
         <div class="search-block">
           <label for="geography-type">Boundary type</label>
           <select id="geography-type"></select>
-          <label for="opportunity-overlay">Opportunity Atlas overlay</label>
-          <select id="opportunity-overlay"></select>
-          <label for="election-overlay">Election maps</label>
-          <select id="election-overlay"></select>
-          <div id="election-tools" class="election-tools" hidden>
+          <label class="nonpolitical-hidden" for="opportunity-overlay" hidden>Opportunity Atlas overlay</label>
+          <select class="nonpolitical-hidden" id="opportunity-overlay" hidden>
+            <option value="none">Off</option>
+          </select>
+          <label class="nonpolitical-hidden" for="election-overlay" hidden>Election maps</label>
+          <select class="nonpolitical-hidden" id="election-overlay" hidden>
+            <option value="none">Off</option>
+          </select>
+          <div id="election-tools" class="election-tools nonpolitical-hidden" hidden>
             <div class="finder-heading">
               <h2 id="election-tools-title">Election selection</h2>
               <button id="election-clear" type="button">Clear</button>
@@ -59,19 +64,19 @@
               <button id="election-mode-subtract" type="button" data-mode="subtract">Subtract</button>
               <button id="election-mode-draw" type="button" data-mode="draw">Draw</button>
             </div>
-            <p id="election-status" class="finder-summary">Turn on an election map to load precincts.</p>
+            <p id="election-status" class="finder-summary">Election maps are off.</p>
           </div>
           <label for="language-select">Language</label>
           <select id="language-select"></select>
-          <label for="search">Find an urban area</label>
-          <input id="search" type="search" placeholder="Search by city, state, or code">
+          <label for="search">Find a geographic area</label>
+          <input id="search" type="search" placeholder="Search by name or code">
           <div id="search-results" class="area-list search-results" role="list" hidden></div>
           <div class="meta-row">
-            <span id="area-count">Loading urban areas...</span>
+            <span id="area-count">Loading areas...</span>
             <span id="release-label"></span>
           </div>
 
-          <div id="race-finder" class="race-finder" aria-label="Race and ethnicity move finder">
+          <div id="race-finder" class="race-finder nonpolitical-hidden" aria-label="Race and ethnicity move finder" hidden>
             <div class="finder-heading">
               <h2>Move Finder</h2>
               <button id="finder-reset" type="button">Reset</button>
@@ -94,17 +99,17 @@
           </div>
         </div>
 
-        <div id="opportunity-legend" class="legend-block opportunity-legend" aria-label="Opportunity Atlas overlay legend"></div>
+        <div id="opportunity-legend" class="legend-block opportunity-legend nonpolitical-hidden" aria-label="Opportunity Atlas overlay legend" hidden></div>
 
         <div id="profile" class="profile">
           <div class="empty-state">
-            <h2>Select an urban area</h2>
+            <h2>Map Home</h2>
             <p>Click a boundary on the map or choose one from the list.</p>
           </div>
         </div>
 
         <div class="list-block">
-          <h2 id="list-title">Urban Area Directory</h2>
+          <h2 id="list-title">Geographic Area Directory</h2>
           <div id="area-list" class="area-list" role="list"></div>
         </div>
       </aside>

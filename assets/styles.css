@@ -272,6 +272,10 @@ body.panel-resizing #map {
   display: none !important;
 }
 
+.nonpolitical-map .nonpolitical-hidden {
+  display: none !important;
+}
+
 .search-block {
   padding: 18px 18px 14px;
   border-bottom: 1px solid var(--line);

@@ -23,7 +23,7 @@ const GOOGLE_SATELLITE_TILE = HAS_LOCAL_SERVER_PROXY ? "/proxy/google-satellite/
 const GOOGLE_3D_ROOT = "https://tile.googleapis.com/v1/3dtiles/root.json?key={key}";
 const CESIUM_SCRIPT_URL = "https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Cesium.js";
 const CESIUM_CSS_URL = "https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Widgets/widgets.css";
-const BOUNDARY_URL = "data/urban-area-boundaries.json?v=20260510-urban-merge-primary";
+const BOUNDARY_URL = "data/urban-area-boundaries.json?v=20260514-urban-merge-extensions";
 const SCHOOL_RATINGS_URL = "data/school-ratings.json?v=20260510-school-official-data";
 const MASSACHUSETTS_LEGISLATORS_URL = "data/ma-legislators.json?v=20260510-ma-state-house-legislators";
 const SCHOOL_RATINGS_API = HAS_LOCAL_SERVER_PROXY ? "/api/school-ratings" : "";
@@ -74,6 +74,8 @@ const WIKIDATA_SEARCH_URL = "https://www.wikidata.org/w/api.php?action=wbsearche
 const WIKIDATA_ENTITY_URL = "https://www.wikidata.org/wiki/Special:EntityData/{id}.json";
 const COMMONS_FILE_URL = "https://commons.wikimedia.org/wiki/Special:FilePath/{file}?width=225";
 const WIKIDATA_ENTITY_PAGE = "https://www.wikidata.org/wiki/{id}";
+const WIKIDATA_UNITED_STATES_ID = "Q30";
+const FOREIGN_PLACE_DESCRIPTION_RE = /\b(united kingdom|england|scotland|wales|australia|canada|philippines|new zealand|ireland|south africa)\b/i;
 const CONTIGUOUS_US_EXTENT = [-125, 24, -66, 50];
 const NATION_GEOMETRY_PADDING = 0.75;
 const NATIONAL_OFFICIALS = [
@@ -93,6 +95,27 @@ const NATIONAL_OFFICIALS = [
   }
 ];
 const PLACE_OFFICIAL_OVERRIDES = {
+  "16000US0667000": {
+    label: "Mayor",
+    name: "Daniel Lurie",
+    party: "Democrat (nonpartisan office)",
+    image: "https://commons.wikimedia.org/wiki/Special:FilePath/Daniel%20Lurie.jpg?width=225",
+    sourceUrl: "https://www.sf.gov/departments--office-mayor",
+    links: [
+      { label: "Official website", url: "https://www.sf.gov/departments--office-mayor" },
+      { label: "Party source", url: "https://en.wikipedia.org/wiki/Daniel_Lurie" }
+    ]
+  },
+  "16000US0684550": {
+    label: "Mayor",
+    name: "Chi Charlie Nguyen",
+    party: "Republican (nonpartisan office)",
+    sourceUrl: "https://www.westminster-ca.gov/government/mayor-and-city-council-members/mayor-chi-charlie-nguyen",
+    links: [
+      { label: "Official website", url: "https://www.westminster-ca.gov/government/mayor-and-city-council-members/mayor-chi-charlie-nguyen" },
+      { label: "Party source", url: "https://www.charlieforcongress.com/" }
+    ]
+  },
   "16000US4159000": {
     label: "Mayor",
     name: "Keith Wilson",
@@ -1084,7 +1107,7 @@ const GEOGRAPHY_TRANSLATIONS = {
     region: ["إقليم", "أقاليم التعداد"],
     nation: ["دولة", "المناطق الوطنية"],
     county: ["مقاطعة", "المقاطعات"],
-    csa: ["منطقة إحصائية مركزية", "المناطق الإحصائية المركزية"],
+    csa: ["منطقة إحصائية مجمعة", "المناطق الإحصائية المجمعة"],
     place: ["مكان", "الأماكن"],
     countySubdivision: ["تقسيم مقاطعة", "تقسيمات المقاطعات"],
     schoolDistrict: ["منطقة مدرسية", "المناطق المدرسية"],
@@ -1105,7 +1128,7 @@ const GEOGRAPHY_TRANSLATIONS = {
     region: ["क्षेत्र", "जनगणना क्षेत्र"],
     nation: ["राष्ट्र", "राष्ट्रीय भूगोल"],
     county: ["काउंटी", "काउंटी"],
-    csa: ["केंद्रीय सांख्यिकीय क्षेत्र", "केंद्रीय सांख्यिकीय क्षेत्र"],
+    csa: ["संयुक्त सांख्यिकीय क्षेत्र", "संयुक्त सांख्यिकीय क्षेत्र"],
     place: ["स्थान", "स्थान"],
     countySubdivision: ["काउंटी उपविभाग", "काउंटी उपविभाग"],
     schoolDistrict: ["स्कूल जिला", "स्कूल जिले"],
@@ -1126,7 +1149,7 @@ const GEOGRAPHY_TRANSLATIONS = {
     region: ["অঞ্চল", "আদমশুমারি অঞ্চল"],
     nation: ["দেশ", "জাতীয় ভৌগোলিক এলাকা"],
     county: ["কাউন্টি", "কাউন্টি"],
-    csa: ["কেন্দ্রীয় পরিসংখ্যান এলাকা", "কেন্দ্রীয় পরিসংখ্যান এলাকা"],
+    csa: ["সম্মিলিত পরিসংখ্যান এলাকা", "সম্মিলিত পরিসংখ্যান এলাকা"],
     place: ["স্থান", "স্থান"],
     countySubdivision: ["কাউন্টি উপবিভাগ", "কাউন্টি উপবিভাগ"],
     schoolDistrict: ["স্কুল জেলা", "স্কুল জেলা"],
@@ -1168,7 +1191,7 @@ const GEOGRAPHY_TRANSLATIONS = {
     region: ["Vùng", "vùng điều tra dân số"],
     nation: ["Quốc gia", "khu vực quốc gia"],
     county: ["Quận", "quận"],
-    csa: ["Khu vực thống kê trung tâm", "khu vực thống kê trung tâm"],
+    csa: ["Khu vực thống kê kết hợp", "khu vực thống kê kết hợp"],
     place: ["Địa điểm", "địa điểm"],
     countySubdivision: ["Phân khu quận", "phân khu quận"],
     schoolDistrict: ["Học khu", "học khu"],
@@ -1305,8 +1328,8 @@ const GEOGRAPHY_TYPES = [
   {
     id: "csa",
     sumlevel: "330",
-    label: "Central statistical area",
-    plural: "central statistical areas",
+    label: "Combined statistical area",
+    plural: "combined statistical areas",
     minZoom: 4,
     example: { geoid: "33000US184", name: "Cleveland-Akron-Canton, OH CSA" }
   },
@@ -1407,14 +1430,74 @@ const GEOGRAPHY_BY_ID = Object.fromEntries(GEOGRAPHY_TYPES.map((type) => [type.i
 const GEOGRAPHY_BY_SUMLEVEL = Object.fromEntries(GEOGRAPHY_TYPES.map((type) => [type.sumlevel, type]));
 const APP_VARIANT = document.body?.dataset?.appVariant || "full";
 const IS_POLITICAL_VARIANT = APP_VARIANT === "political";
+const IS_NONPOLITICAL_VARIANT = APP_VARIANT === "nonpolitical";
+const HAS_OPPORTUNITY_OVERLAYS = !IS_POLITICAL_VARIANT && !IS_NONPOLITICAL_VARIANT;
+const HAS_ELECTION_OVERLAYS = !IS_NONPOLITICAL_VARIANT;
+const HAS_GOOGLE_BASEMAPS = !IS_POLITICAL_VARIANT && !IS_NONPOLITICAL_VARIANT;
+const HAS_MOVE_FINDER = !IS_POLITICAL_VARIANT && !IS_NONPOLITICAL_VARIANT;
+const SHOW_OFFICIALS = !IS_NONPOLITICAL_VARIANT;
 const POLITICAL_GEOGRAPHY_IDS = new Set(["congressional", "stateHouse", "stateSenate"]);
+const NONPOLITICAL_GEOGRAPHY_IDS = new Set([
+  "urban",
+  "metro",
+  "csa",
+  "region",
+  "division",
+  "state",
+  "county",
+  "countySubdivision",
+  "nation",
+  "reservation",
+  "tract",
+  "zip",
+  "blockGroup",
+  "puma",
+  "place"
+]);
+const NONPOLITICAL_GEOGRAPHY_ORDER = [
+  "urban",
+  "metro",
+  "csa",
+  "place",
+  "state",
+  "county",
+  "countySubdivision",
+  "region",
+  "division",
+  "nation",
+  "zip",
+  "tract",
+  "blockGroup",
+  "puma",
+  "reservation"
+];
+const NONPOLITICAL_EXAMPLES = {
+  urban: { geoid: "40000US63217", name: "New York--Jersey City--Newark, NY--NJ Urban Area" },
+  metro: { geoid: "31000US35620", name: "New York-Newark-Jersey City, NY-NJ Metro Area" },
+  csa: { geoid: "33000US408", name: "New York-Newark, NY-NJ-CT-PA CSA" },
+  place: { geoid: "16000US3651000", name: "New York, NY" },
+  state: { geoid: "04000US36", name: "New York" },
+  county: { geoid: "05000US36061", name: "New York County, NY" },
+  countySubdivision: { geoid: "06000US3606144919", name: "Manhattan borough, New York County, NY" },
+  region: { geoid: "02000US1", name: "Northeast Region" },
+  division: { geoid: "03000US2", name: "Middle Atlantic Division" },
+  nation: { geoid: "01000US", name: "United States" },
+  zip: { geoid: "86000US10001", name: "10001" },
+  tract: { geoid: "14000US36061000100", name: "Census Tract 1, New York, NY" },
+  blockGroup: { geoid: "15000US360610001001", name: "BG 1, Tract 1, New York, NY" },
+  puma: { geoid: "79500US3604121", name: "NYC-Manhattan Community Districts 1 & 2--Financial District & Greenwich Village PUMA, NY" },
+  reservation: { geoid: "25200US9370R", name: "Shinnecock (state) Reservation" }
+};
 
 function defaultGeographyId() {
   return IS_POLITICAL_VARIANT ? "congressional" : "urban";
 }
 
 function isGeographyAllowed(type) {
-  return !IS_POLITICAL_VARIANT || POLITICAL_GEOGRAPHY_IDS.has(type?.id);
+  if (!type) return false;
+  if (IS_POLITICAL_VARIANT) return POLITICAL_GEOGRAPHY_IDS.has(type.id);
+  if (IS_NONPOLITICAL_VARIANT) return NONPOLITICAL_GEOGRAPHY_IDS.has(type.id);
+  return true;
 }
 
 function geographyById(id) {
@@ -1422,9 +1505,19 @@ function geographyById(id) {
   return isGeographyAllowed(type) ? type : GEOGRAPHY_BY_ID[defaultGeographyId()];
 }
 
+function exampleForType(type) {
+  return (IS_NONPOLITICAL_VARIANT && NONPOLITICAL_EXAMPLES[type?.id]) || type?.example;
+}
+
 function availableGeographyTypes() {
-  if (!IS_POLITICAL_VARIANT) return GEOGRAPHY_TYPES;
-  return ["congressional", "stateHouse", "stateSenate"].map((id) => GEOGRAPHY_BY_ID[id]);
+  if (IS_POLITICAL_VARIANT) return ["congressional", "stateHouse", "stateSenate"].map((id) => GEOGRAPHY_BY_ID[id]);
+  if (IS_NONPOLITICAL_VARIANT) {
+    return NONPOLITICAL_GEOGRAPHY_ORDER
+      .map((id) => GEOGRAPHY_BY_ID[id])
+      .filter(Boolean)
+      .map((type) => ({ ...type, example: exampleForType(type) }));
+  }
+  return GEOGRAPHY_TYPES;
 }
 const STATE_FIPS_TO_ABBR = {
   "01": "AL",
@@ -2130,8 +2223,8 @@ window.urbanAreaApp = {
   map,
   variant: APP_VARIANT,
   geographyTypes: availableGeographyTypes(),
-  opportunityOverlays: IS_POLITICAL_VARIANT ? [] : OPPORTUNITY_OVERLAYS,
-  electionOverlays: ELECTION_OVERLAYS,
+  opportunityOverlays: HAS_OPPORTUNITY_OVERLAYS ? OPPORTUNITY_OVERLAYS : [],
+  electionOverlays: HAS_ELECTION_OVERLAYS ? ELECTION_OVERLAYS : [],
   policyOverlays: () => policyOverlays(),
   layers: {
     baseLayer,
@@ -2287,7 +2380,7 @@ function styleBoundaryFeature(feature) {
   if (geoid && geoid === state.selectedGeoid) return hiddenStyle;
 
   const type = activeGeography();
-  if (type.id === "congressional") {
+  if (SHOW_OFFICIALS && type.id === "congressional") {
     const representative = getCongressRepresentative(geoid);
     return partyBoundaryStyles[normalizeParty(representative?.currentTerm?.party)] || partyBoundaryStyles.Other;
   }
@@ -2333,7 +2426,7 @@ function visibleBoundaryLayer() {
 }
 
 function normalizedBaseMap(id) {
-  if (IS_POLITICAL_VARIANT) return "reporter";
+  if (!HAS_GOOGLE_BASEMAPS) return "reporter";
   return ["reporter", "googleSatellite", "google3d"].includes(id) ? id : "reporter";
 }
 
@@ -2628,17 +2721,17 @@ function populationDensity(metadata = {}, metrics = {}, indexArea = null) {
 }
 
 function activeOpportunityOverlay() {
-  if (IS_POLITICAL_VARIANT) return null;
+  if (!HAS_OPPORTUNITY_OVERLAYS) return null;
   return OPPORTUNITY_BY_ID[state.opportunityOverlay] || state.policyOverlayById.get(state.opportunityOverlay) || null;
 }
 
 function policyOverlays() {
-  if (IS_POLITICAL_VARIANT) return [];
+  if (!HAS_OPPORTUNITY_OVERLAYS) return [];
   return Array.isArray(state.policyOverlayCatalog?.overlays) ? state.policyOverlayCatalog.overlays : [];
 }
 
 async function loadPolicyOverlayCatalog() {
-  if (IS_POLITICAL_VARIANT) {
+  if (!HAS_OPPORTUNITY_OVERLAYS) {
     state.policyOverlayCatalog = { overlays: [] };
     state.policyOverlayById = new Map();
     window.urbanAreaApp.opportunityOverlays = [];
@@ -2761,7 +2854,7 @@ function statePolicyStyleForFeature(feature) {
 }
 
 function isElectionActive() {
-  return state.electionOverlay !== "none" && Boolean(ELECTION_BY_ID[state.electionOverlay]);
+  return HAS_ELECTION_OVERLAYS && state.electionOverlay !== "none" && Boolean(ELECTION_BY_ID[state.electionOverlay]);
 }
 
 function electionWinner(feature) {
@@ -3307,7 +3400,7 @@ async function getOpportunityData(overlay) {
 }
 
 function updateOpportunityLayerVisibility() {
-  if (IS_POLITICAL_VARIANT) {
+  if (!HAS_OPPORTUNITY_OVERLAYS) {
     opportunityCountyLayer.setVisible(false);
     opportunityTractLayer.setVisible(false);
     opportunityStateLayer.setVisible(false);
@@ -3398,7 +3491,7 @@ function renderOpportunityLegend(status = "idle", message = "") {
 }
 
 async function setOpportunityOverlay(id) {
-  if (IS_POLITICAL_VARIANT) {
+  if (!HAS_OPPORTUNITY_OVERLAYS) {
     state.opportunityOverlay = "none";
     state.opportunityData = null;
     state.opportunityStyleCache.clear();
@@ -3892,7 +3985,7 @@ function geographyExtraSection(geoid, profile, extras) {
     stat("Without mortgage taxes", currency(metrics.medianRealEstateTaxesWithoutMortgage))
   ];
 
-  if (type.id === "congressional") {
+  if (SHOW_OFFICIALS && type.id === "congressional") {
     const member = extras?.representative;
     if (member) {
       const term = member.currentTerm || member.terms?.at(-1) || {};
@@ -3913,7 +4006,7 @@ function geographyExtraSection(geoid, profile, extras) {
     }
   }
 
-  if (type.id === "state") {
+  if (SHOW_OFFICIALS && type.id === "state") {
     const lieutenantGovernor = extras?.lieutenantGovernor;
     if (lieutenantGovernor) {
       cards.unshift(
@@ -3968,7 +4061,7 @@ function geographyExtraSection(geoid, profile, extras) {
     }
   }
 
-  if (type.id === "nation") {
+  if (SHOW_OFFICIALS && type.id === "nation") {
     const officials = extras?.nationalOfficials || NATIONAL_OFFICIALS;
     cards.unshift(
       ...officials.map((official) =>
@@ -3984,7 +4077,7 @@ function geographyExtraSection(geoid, profile, extras) {
     );
   }
 
-  if (type.id === "stateHouse" || type.id === "stateSenate") {
+  if (SHOW_OFFICIALS && (type.id === "stateHouse" || type.id === "stateSenate")) {
     const legislator = extras?.stateLegislator;
     const photos = stateLegislatorPhotoUrls(legislator);
     cards.unshift(
@@ -4003,7 +4096,7 @@ function geographyExtraSection(geoid, profile, extras) {
     );
   }
 
-  if (type.id === "place") {
+  if (SHOW_OFFICIALS && type.id === "place") {
     const mayor = extras?.mayor;
     cards.unshift(
       mayor
@@ -4013,7 +4106,8 @@ function geographyExtraSection(geoid, profile, extras) {
             party: mayor.party,
             image: mayor.image,
             fallbackImage: mayor.wikidataImage,
-            url: mayor.links?.[0]?.url || mayor.sourceUrl,
+            links: mayor.links || [],
+            url: mayor.sourceUrl,
             email: mayor.email
           })
         : stat("Mayor", "Not available", extras?.mayorError || "OpenStates does not list a current mayor for this place.")
@@ -4821,16 +4915,35 @@ function placeQueryCandidates(geoid, profile) {
   ].filter(Boolean);
 }
 
-function placeSearchScore(result, profile) {
+function placeSearchScore(result, profile, geoid = "") {
   const label = String(result.label || "").toLowerCase();
   const description = String(result.description || "").toLowerCase();
   const simple = String(profile?.metadata?.simple_name || "").toLowerCase();
+  const parsed = parsePlaceGeoid(geoid);
+  const stateName = String(STATE_ABBR_TO_NAME[parsed?.state] || "").toLowerCase();
   let score = 0;
   if (simple && label === simple) score += 4;
   if (simple && label.includes(simple)) score += 2;
   if (/\b(city|town|village|municipality|borough|census-designated place|county seat)\b/.test(description)) score += 3;
-  if (/\bUnited States\b/i.test(result.description || "")) score += 1;
+  if (stateName && description.includes(stateName)) score += 4;
+  if (/\bUnited States\b/i.test(result.description || "")) score += 3;
+  if (FOREIGN_PLACE_DESCRIPTION_RE.test(description) && !/\b(united states|usa)\b/i.test(description)) score -= 8;
   return score;
+}
+
+function wikidataPlaceMatchesProfile(result, entity, geoid, profile) {
+  const countryIds = wikidataClaimEntityIds(entity, "P17");
+  if (countryIds.length && !countryIds.includes(WIKIDATA_UNITED_STATES_ID)) return false;
+
+  const parsed = parsePlaceGeoid(geoid);
+  const stateName = String(STATE_ABBR_TO_NAME[parsed?.state] || "").toLowerCase();
+  const description = String(result?.description || "").toLowerCase();
+  const hasUsSignal = /\b(united states|usa)\b/i.test(description) || (stateName && description.includes(stateName));
+  if (!countryIds.length && FOREIGN_PLACE_DESCRIPTION_RE.test(description) && !hasUsSignal) return false;
+
+  const simple = normalizeNameForMatch(profile?.metadata?.simple_name || profile?.metadata?.display_name?.split(",")[0] || "");
+  const label = normalizeNameForMatch(result?.label || wikidataLabel(entity));
+  return !simple || !label || label === simple || label.includes(simple) || simple.includes(label);
 }
 
 async function findWikidataPlaceEntity(geoid, profile) {
@@ -4843,12 +4956,13 @@ async function findWikidataPlaceEntity(geoid, profile) {
       const results = await searchWikidataEntities(query, 8);
       const ranked = results
         .filter((result) => !seen.has(result.id))
-        .map((result) => ({ result, score: placeSearchScore(result, profile) }))
+        .map((result) => ({ result, score: placeSearchScore(result, profile, geoid) }))
         .sort((a, b) => b.score - a.score);
 
       for (const { result } of ranked.slice(0, 5)) {
         seen.add(result.id);
         const entity = await loadWikidataEntity(result.id);
+        if (!wikidataPlaceMatchesProfile(result, entity, geoid, profile)) continue;
         if (wikidataClaimEntityIds(entity, "P6").length) return { id: result.id, entity };
       }
     }
@@ -5370,7 +5484,12 @@ function findMayor(geoid, profile, people) {
 
 function placeOfficialOverride(geoid) {
   const override = PLACE_OFFICIAL_OVERRIDES[geoid];
-  return override ? { ...override, links: override.sourceUrl ? [{ label: "Official website", url: override.sourceUrl }] : [] } : null;
+  return override
+    ? {
+        ...override,
+        links: mergeLinks(override.links || [], override.sourceUrl ? [{ label: "Official website", url: override.sourceUrl }] : [])
+      }
+    : null;
 }
 
 function mergePlaceOfficial(liveOfficial, override) {
@@ -5403,7 +5522,7 @@ async function loadGeographyExtras(geoid, profile) {
     }
   }
 
-  if (type.id === "state") {
+  if (SHOW_OFFICIALS && type.id === "state") {
     const stateAbbr = parseStateGeoid(geoid);
     if (stateAbbr) {
       const governorFallback = staticGovernorForState(stateAbbr);
@@ -5440,7 +5559,7 @@ async function loadGeographyExtras(geoid, profile) {
     }
   }
 
-  if (type.id === "stateHouse" || type.id === "stateSenate") {
+  if (SHOW_OFFICIALS && (type.id === "stateHouse" || type.id === "stateSenate")) {
     const parsed = parseStateLegislativeGeoid(geoid, type, profile);
     if (parsed?.state) {
       if (parsed.state === "MA") {
@@ -5465,7 +5584,7 @@ async function loadGeographyExtras(geoid, profile) {
     }
   }
 
-  if (type.id === "place") {
+  if (SHOW_OFFICIALS && type.id === "place") {
     const parsed = parsePlaceGeoid(geoid);
     if (parsed?.state) {
       const override = placeOfficialOverride(geoid);
@@ -5497,7 +5616,7 @@ async function loadGeographyExtras(geoid, profile) {
     extras.externalLinks = mergeLinks(extras.schoolRatings?.externalLinks || [], schoolSourceLinks(profile, geoid));
   }
 
-  if (type.id === "nation") {
+  if (SHOW_OFFICIALS && type.id === "nation") {
     extras.nationalOfficials = NATIONAL_OFFICIALS.map((official) => ({ ...official }));
     await Promise.all(
       extras.nationalOfficials.map((official) =>
@@ -5827,12 +5946,14 @@ function renderHomeProfile() {
   const release = state.index?.release?.name || "Census Reporter latest ACS";
   const boundaryStatus = state.areasVisible ? tr("Visible") : tr("Hidden");
   const dotsStatus = state.dotsVisible ? tr("Visible") : tr("Hidden");
-  const overlayStat = IS_POLITICAL_VARIANT
-    ? ""
-    : stat("Opportunity overlay", escapeHtml(overlayLabel), state.opportunityOverlay === "none" ? tr("Off") : tr("Active"));
+  const overlayStat = HAS_OPPORTUNITY_OVERLAYS
+    ? stat("Opportunity overlay", escapeHtml(overlayLabel), state.opportunityOverlay === "none" ? tr("Off") : tr("Active"))
+    : "";
   const homeHelp = IS_POLITICAL_VARIANT
     ? tr("Use the search, directory, map boundaries, or election map to open a political profile.")
-    : tr("Use the search, directory, map boundaries, or Move Finder to open a geography profile.");
+    : IS_NONPOLITICAL_VARIANT
+      ? tr("Use the search, directory, or map boundaries to open a geography profile.")
+      : tr("Use the search, directory, map boundaries, or Move Finder to open a geography profile.");
 
   elements.profile.innerHTML = `
     <div class="profile-header home-profile">
@@ -5910,7 +6031,8 @@ async function selectArea(geoid, options = {}) {
 
   const previousSelectedName = state.selectedGeoid === geoid ? state.selectedName : "";
   state.selectedGeoid = geoid;
-  const exampleName = type.example?.geoid === geoid ? type.example.name : "";
+  const example = exampleForType(type);
+  const exampleName = example?.geoid === geoid ? example.name : "";
   state.selectedName = options.name || exampleName || previousSelectedName || "";
   selectedSource.clear(true);
   urbanLayer.changed();
@@ -5961,7 +6083,7 @@ function finderRaceOption() {
 }
 
 function isFinderActive() {
-  return activeGeography().id === "urban" && ["percent", "count"].includes(state.finderSort);
+  return HAS_MOVE_FINDER && activeGeography().id === "urban" && ["percent", "count"].includes(state.finderSort);
 }
 
 function areaRaceShare(area, option = finderRaceOption()) {
@@ -6038,7 +6160,7 @@ async function searchGeographies(query) {
 
 function renderSearchPrompt() {
   const type = activeGeography();
-  const example = type.example;
+  const example = exampleForType(type);
   const typeLabel = lowerUiText(translatedTypeLabel(type));
   elements.list.innerHTML = `
     <button type="button" data-geoid="${example.geoid}" data-name="${escapeHtml(example.name)}" class="${example.geoid === state.selectedGeoid ? "active" : ""}">
@@ -6208,7 +6330,7 @@ function updateFinderControls() {
   const type = activeGeography();
   const translatedLabel = translatedTypeLabel(type);
   const translatedPlural = translatedTypePlural(type);
-  if (IS_POLITICAL_VARIANT) {
+  if (!HAS_MOVE_FINDER) {
     elements.finder.hidden = true;
     state.finderSort = "directory";
     elements.search.placeholder = tr("Search {plural} by name or code", { plural: translatedPlural });
@@ -6366,7 +6488,7 @@ function populateGeographySelect() {
 }
 
 function populateOpportunitySelect() {
-  if (IS_POLITICAL_VARIANT) {
+  if (!HAS_OPPORTUNITY_OVERLAYS) {
     elements.opportunity.innerHTML = '<option value="none">Off</option>';
     elements.opportunity.value = "none";
     return;
@@ -6396,6 +6518,11 @@ function populateOpportunitySelect() {
 }
 
 function populateElectionSelect() {
+  if (!HAS_ELECTION_OVERLAYS) {
+    elements.election.innerHTML = '<option value="none">Off</option>';
+    elements.election.value = "none";
+    return;
+  }
   const options = [
     '<option value="none">Off</option>',
     ...ELECTION_OVERLAYS.map((overlay) => `<option value="${escapeHtml(overlay.id)}">${escapeHtml(overlay.title)}</option>`)
@@ -6420,6 +6547,19 @@ function renderElectionHomeProfile() {
 }
 
 function setElectionOverlay(id) {
+  if (!HAS_ELECTION_OVERLAYS) {
+    state.electionOverlay = "none";
+    localStorage.setItem("censusMapElectionOverlay", "none");
+    elements.election.value = "none";
+    electionLayer.setVisible(false);
+    electionSelectionLayer.setVisible(false);
+    electionDrawLayer.setVisible(false);
+    elements.electionTools.hidden = true;
+    state.electionLoadToken += 1;
+    updateElectionStatus("Election map is off.");
+    if (!state.selectedGeoid) renderHomeProfile();
+    return;
+  }
   state.electionOverlay = ELECTION_BY_ID[id] ? id : "none";
   localStorage.setItem("censusMapElectionOverlay", state.electionOverlay);
   elements.election.value = state.electionOverlay;
@@ -6471,7 +6611,11 @@ function renderLegend() {
 function applyLanguageChrome() {
   document.documentElement.lang = languageConfig().code;
   document.documentElement.dir = RTL_LANGUAGES.has(state.language) ? "rtl" : "ltr";
-  document.title = IS_POLITICAL_VARIANT ? tr("Political District Census Dots Map") : tr("Urban Area Census Dots Map");
+  document.title = IS_POLITICAL_VARIANT
+    ? tr("Political District Census Dots Map")
+    : IS_NONPOLITICAL_VARIANT
+      ? tr("Nonpolitical Census Dots Map")
+      : tr("Urban Area Census Dots Map");
   elements.language.value = state.language;
   document.querySelector('label[for="geography-type"]').textContent = tr("Boundary type");
   document.querySelector('label[for="opportunity-overlay"]').textContent = tr("Opportunity Atlas overlay");
@@ -6738,17 +6882,19 @@ async function init() {
   state.finderRace = validFinderRace(state.finderRace);
   state.finderMinPopulation = validFinderMinPopulation(state.finderMinPopulation);
   state.finderLimit = validFinderLimit(state.finderLimit);
-  if (IS_POLITICAL_VARIANT) {
+  if (!HAS_OPPORTUNITY_OVERLAYS) {
     state.opportunityOverlay = "none";
+  }
+  if (!HAS_MOVE_FINDER) {
     state.finderSort = "directory";
   }
-  if (!ELECTION_BY_ID[state.electionOverlay]) state.electionOverlay = "none";
+  if (!HAS_ELECTION_OVERLAYS || !ELECTION_BY_ID[state.electionOverlay]) state.electionOverlay = "none";
   initializePanelResize();
   elements.baseMap.value = state.baseMap;
   populateGeographySelect();
   populateLanguageSelect();
   populateFinderControls();
-  if (!IS_POLITICAL_VARIANT) {
+  if (HAS_OPPORTUNITY_OVERLAYS) {
     try {
       await loadPolicyOverlayCatalog();
     } catch (error) {
@@ -6766,7 +6912,7 @@ async function init() {
     setGoogleMapStatus(`Google map view failed. ${error.message}`);
   });
 
-  state.index = await fetchJsonWithRetry("data/urban-areas.json?v=20260510-urban-merge-primary", { cache: "force-cache" });
+  state.index = await fetchJsonWithRetry("data/urban-areas.json?v=20260514-urban-merge-extensions", { cache: "force-cache" });
 
   if (IS_POLITICAL_VARIANT) setActiveGeography(state.activeGeography, { keepSelection: true });
   else updateGeographyChrome();

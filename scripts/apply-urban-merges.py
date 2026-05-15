@@ -94,6 +94,35 @@ MERGE_GROUPS = [
         "components": [
             "40000US40429",  # Houston
             "40000US87300",  # The Woodlands--Conroe
+            "40000US46639",  # Lake Conroe Eastshore
+            "40000US46666",  # Lake Conroe Westshore
+        ],
+    },
+    {
+        "geoid": "40000US23824",
+        "tigerGeoid": "23824",
+        "name": "Detroit Urban Area",
+        "components": [
+            "40000US23824",  # Detroit
+            "40000US83332",  # South Lyon--Hamburg--Genoa
+        ],
+    },
+    {
+        "geoid": "40000US17668",
+        "tigerGeoid": "17668",
+        "name": "Cleveland Urban Area",
+        "components": [
+            "40000US17668",  # Cleveland
+            "40000US51364",  # Lorain--Elyria
+        ],
+    },
+    {
+        "geoid": "40000US03817",
+        "tigerGeoid": "03817",
+        "name": "Atlanta Urban Area",
+        "components": [
+            "40000US03817",  # Atlanta
+            "40000US32194",  # Gainesville
         ],
     },
 ]
@@ -293,6 +322,23 @@ def update_existing_merged_area(group, area):
     return updated
 
 
+def extend_existing_merged_area(group, existing_area, new_components):
+    merged = merged_area_from_components(group, [existing_area, *new_components])
+    existing_names = existing_area.get("componentNames") or [existing_area.get("name")]
+    new_names = [area.get("name") for area in new_components]
+    aliases = set(merged.get("aliases") or [])
+    aliases.update(existing_area.get("aliases") or [])
+    aliases.update([existing_area.get("name"), existing_area.get("tigerName")])
+    for area in new_components:
+        aliases.update([area.get("name"), area.get("tigerName"), simple_urban_name(area.get("name"))])
+
+    merged["componentNames"] = list(dict.fromkeys([name for name in [*existing_names, *new_names] if name]))
+    merged["primaryGeoid"] = existing_area.get("primaryGeoid") or existing_area.get("geoid")
+    merged["primaryName"] = existing_area.get("primaryName") or existing_area.get("name")
+    merged["aliases"] = sorted({alias for alias in aliases if alias})
+    return merged
+
+
 def merged_feature_from_components(group, component_features):
     geometry = combine_geometry(component_features)
     if not geometry:
@@ -317,6 +363,11 @@ def update_existing_merged_feature(group, feature):
     updated["properties"]["full_geoid"] = group["geoid"]
     updated["properties"]["COMPONENT_GEOIDS"] = ",".join(group["components"])
     return updated
+
+
+def extend_existing_merged_feature(group, existing_feature, new_component_features):
+    merged = merged_feature_from_components(group, [existing_feature, *new_component_features])
+    return merged or update_existing_merged_feature(group, existing_feature)
 
 
 def main():
@@ -351,10 +402,23 @@ def main():
 
         existing_area = areas_by_geoid.get(group["geoid"])
         if existing_area:
-            merged_areas.append(update_existing_merged_area(group, existing_area))
             existing_feature = features_by_geoid.get(group["geoid"])
-            if existing_feature:
-                merged_features.append(update_existing_merged_feature(group, existing_feature))
+            new_components = [area for area in components if area.get("geoid") != group["geoid"]]
+            new_component_features = [
+                features_by_geoid[area["geoid"]]
+                for area in new_components
+                if area["geoid"] in features_by_geoid
+            ]
+
+            if new_components:
+                merged_areas.append(extend_existing_merged_area(group, existing_area, new_components))
+                if existing_feature:
+                    merged_features.append(extend_existing_merged_feature(group, existing_feature, new_component_features))
+                consumed_component_geoids.update(area["geoid"] for area in new_components)
+            else:
+                merged_areas.append(update_existing_merged_area(group, existing_area))
+                if existing_feature:
+                    merged_features.append(update_existing_merged_feature(group, existing_feature))
             generated_merge_geoids.add(group["geoid"])
             continue
 
