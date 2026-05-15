@@ -33,6 +33,7 @@ MERGE_GROUPS = [
             "40000US90028",  # Vallejo
             "40000US02683",  # Antioch
             "40000US36271",  # Half Moon Bay
+            "40000US24256",  # Discovery Bay
         ],
     },
     {
@@ -170,6 +171,15 @@ MERGE_GROUPS = [
             "40000US29980",  # Florence East
             "40000US75092",  # Rio Verde
             "40000US33742",  # Gold Canyon
+        ],
+    },
+    {
+        "geoid": "40000US23527",
+        "tigerGeoid": "23527",
+        "name": "Denver Urban Area",
+        "components": [
+            "40000US23527",  # Denver--Aurora
+            "40000US46126",  # Lafayette--Erie--Louisville
         ],
     },
 ]

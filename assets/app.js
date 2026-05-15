@@ -23,7 +23,7 @@ const GOOGLE_SATELLITE_TILE = HAS_LOCAL_SERVER_PROXY ? "/proxy/google-satellite/
 const GOOGLE_3D_ROOT = "https://tile.googleapis.com/v1/3dtiles/root.json?key={key}";
 const CESIUM_SCRIPT_URL = "https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Cesium.js";
 const CESIUM_CSS_URL = "https://ajax.googleapis.com/ajax/libs/cesiumjs/1.105/Build/Cesium/Widgets/widgets.css";
-const BOUNDARY_URL = "data/urban-area-boundaries.json?v=20260515-phoenix-urban-merge";
+const BOUNDARY_URL = "data/urban-area-boundaries.json?v=20260515-sf-denver-urban-merges";
 const SCHOOL_RATINGS_URL = "data/school-ratings.json?v=20260510-school-official-data";
 const MASSACHUSETTS_LEGISLATORS_URL = "data/ma-legislators.json?v=20260510-ma-state-house-legislators";
 const SCHOOL_RATINGS_API = HAS_LOCAL_SERVER_PROXY ? "/api/school-ratings" : "";
@@ -6912,7 +6912,7 @@ async function init() {
     setGoogleMapStatus(`Google map view failed. ${error.message}`);
   });
 
-  state.index = await fetchJsonWithRetry("data/urban-areas.json?v=20260515-phoenix-urban-merge", { cache: "force-cache" });
+  state.index = await fetchJsonWithRetry("data/urban-areas.json?v=20260515-sf-denver-urban-merges", { cache: "force-cache" });
 
   if (IS_POLITICAL_VARIANT) setActiveGeography(state.activeGeography, { keepSelection: true });
   else updateGeographyChrome();
