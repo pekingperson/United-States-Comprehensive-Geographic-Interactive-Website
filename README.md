@@ -8,7 +8,7 @@ After this repository is published with GitHub Pages, open:
 
 https://pekingperson.github.io/United-States-Comprehensive-Geographic-Interactive-Website/
 
-The GitHub Pages version runs as a static website. The local server version enables the full proxy-backed experience, including Census Reporter base tiles, live school/offical lookup endpoints, and optional Google Maps satellite/3D tiles.
+The GitHub Pages version runs as a static website with Esri's public World Light Gray base and reference tiles. The map background and place labels do not require an API key. The local server version enables the full proxy-backed experience, including Census Reporter base tiles, live school/offical lookup endpoints, and optional Google Maps satellite/3D tiles.
 
 ## Run Locally
 

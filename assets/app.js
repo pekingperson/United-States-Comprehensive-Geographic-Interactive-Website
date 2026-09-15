@@ -5,18 +5,17 @@ const MAPBOX_ACCESS_TOKEN =
   "pk.eyJ1IjoiY2Vuc3VzcmVwb3J0ZXIiLCJhIjoiQV9hS01rQSJ9.wtsn0FwmAdRV7cckopFKkA";
 const LOCAL_SERVER_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 const HAS_LOCAL_SERVER_PROXY = LOCAL_SERVER_HOSTS.has(window.location.hostname);
+const LIGHT_GRAY_TILE_ROOT = "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas";
+const LIGHT_GRAY_TILE_MAX_ZOOM = 16;
+const LIGHT_GRAY_ATTRIBUTION =
+  'Tiles &copy; <a href="https://www.esri.com/">Esri</a> &mdash; Esri, HERE, Garmin, <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>, and the GIS user community';
 const BASE_TILE = HAS_LOCAL_SERVER_PROXY
   ? `/proxy/mapbox/styles/v1/censusreporter/ckfyfj0v707ob19qdo047ndoq/tiles/256/{z}/{x}/{y}?access_token=${MAPBOX_ACCESS_TOKEN}`
-  : "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
+  : `${LIGHT_GRAY_TILE_ROOT}/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}`;
 const BASE_TILE_ATTRIBUTION = HAS_LOCAL_SERVER_PROXY
   ? '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-  : '&copy; <a href="https://carto.com/attributions">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-const LABEL_TILE_URLS = [
-  "https://a.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png",
-  "https://b.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png",
-  "https://c.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png",
-  "https://d.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}.png"
-];
+  : LIGHT_GRAY_ATTRIBUTION;
+const LABEL_TILE_URL = `${LIGHT_GRAY_TILE_ROOT}/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}`;
 const DOT_TILE = "https://tiles.censusdots.com/file/race-tiles/{z}/{x}/{y}.png";
 const GOOGLE_MAPS_CONFIG_API = HAS_LOCAL_SERVER_PROXY ? "/api/google-maps-config" : "";
 const GOOGLE_SATELLITE_TILE = HAS_LOCAL_SERVER_PROXY ? "/proxy/google-satellite/{z}/{x}/{y}" : "";
@@ -1980,7 +1979,7 @@ const baseLayer = new ol.layer.Tile({
     url: BASE_TILE,
     tileSize: 256,
     cacheSize: 768,
-    maxZoom: 20,
+    maxZoom: HAS_LOCAL_SERVER_PROXY ? 20 : LIGHT_GRAY_TILE_MAX_ZOOM,
     transition: 0,
     attributions: BASE_TILE_ATTRIBUTION
   }),
@@ -2055,13 +2054,12 @@ if (typeof dotsLayer.setUseInterimTilesOnError === "function") {
 
 const labelLayer = new ol.layer.Tile({
   source: new ol.source.XYZ({
-    urls: LABEL_TILE_URLS,
+    url: LABEL_TILE_URL,
     tileSize: 256,
     cacheSize: 512,
-    maxZoom: 20,
+    maxZoom: LIGHT_GRAY_TILE_MAX_ZOOM,
     transition: 0,
-    attributions:
-      '&copy; <a href="https://carto.com/attributions">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    attributions: LIGHT_GRAY_ATTRIBUTION
   }),
   preload: 1,
   opacity: 0.95
@@ -6635,7 +6633,7 @@ function applyLanguageChrome() {
   elements.zoomUs.title = tr("Zoom to the United States");
   elements.toggleDots.title = tr("Show or hide Census Dots background");
   elements.toggleAreas.title = tr("Show or hide boundaries");
-  elements.baseMap.querySelector('option[value="reporter"]').textContent = tr("Census Reporter");
+  elements.baseMap.querySelector('option[value="reporter"]').textContent = tr(HAS_LOCAL_SERVER_PROXY ? "Census Reporter" : "Light gray");
   elements.baseMap.querySelector('option[value="googleSatellite"]').textContent = tr("Google Satellite");
   elements.baseMap.querySelector('option[value="google3d"]').textContent = tr("Google 3D");
   elements.zoomUs.textContent = tr("US");
