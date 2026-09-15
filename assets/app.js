@@ -49,7 +49,7 @@ const CENSUS_OPPORTUNITY_DATA = HAS_LOCAL_SERVER_PROXY
   ? "/proxy/census-opportunity/"
   : "https://www2.census.gov/ces/opportunity/";
 const POLICY_OVERLAY_URL = "data/policy-overlays.json?v=20260509-policy-overlays";
-const ANCESTRY_OVERLAY_URL = "data/ancestry-tracts.json?v=20260817-bright-regions-v2";
+const ANCESTRY_OVERLAY_URL = "data/ancestry-tracts.json?v=20260915-american-europe";
 const ELECTION_STATE_INDEX_URL = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 const ELECTION_PRECINCT_URL = "https://int.nyt.com/newsgraphics/elections/map-data/2024/national/{state}-precincts-with-results.topojson.gz";
 const OPPORTUNITY_SUBGROUP = "rP_gP_p25_e";
@@ -3601,7 +3601,7 @@ function renderOpportunityLegend(status = "idle", message = "") {
       <p class="legend-note">
         County colors at low zoom; census tract detail at zoom ${escapeHtml(OPPORTUNITY_TRACT_SWITCH_ZOOM)} and above.
         Rendered in Web Mercator (EPSG:3857). Hover for a summary; click a tract for its full ancestry breakdown.
-        Vietnamese is grouped with East Asia in this regional color scheme.
+        American is grouped with Northern &amp; Western Europe and Vietnamese with East Asia in this regional color scheme.
       </p>
       <p class="legend-note">
         Source: <a href="${escapeHtml(censusUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(censusName)}</a>.

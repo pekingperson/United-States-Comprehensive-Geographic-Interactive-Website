@@ -102,7 +102,7 @@ const CENTRAL_EAST_EUROPE = new Set([
   "Yugoslavian"
 ]);
 const SOUTHERN_EUROPE = new Set(["Basque", "Cypriot", "Greek", "Italian", "Maltese", "Portuguese"]);
-const NORTH_AMERICAN = new Set(["American", "Cajun", "Canadian", "French Canadian", "Pennsylvania German"]);
+const NORTH_AMERICAN = new Set(["Cajun", "Canadian", "French Canadian", "Pennsylvania German"]);
 
 const TABLES = [
   {
@@ -406,7 +406,7 @@ const output = {
   generatedAt: new Date().toISOString(),
   release: ACS_RELEASE,
   projection: "EPSG:3857",
-  methodology: "Dominant detailed ancestry, Hispanic origin, Asian group, Pacific Islander group, Black identity, or American Indian/Alaska Native identity by ACS estimated count. People can report more than one ancestry. Vietnamese is grouped with East Asia for the regional color scheme.",
+  methodology: "Dominant detailed ancestry, Hispanic origin, Asian group, Pacific Islander group, Black identity, or American Indian/Alaska Native identity by ACS estimated count. People can report more than one ancestry. American is grouped with Northern & Western Europe and Vietnamese with East Asia for the regional color scheme.",
   source: {
     name: `U.S. Census Bureau, ${ACS_RELEASE}`,
     url: "https://www.census.gov/data/developers/data-sets/acs-5year.html",
