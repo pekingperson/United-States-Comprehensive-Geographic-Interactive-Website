@@ -49,6 +49,7 @@ const CENSUS_OPPORTUNITY_DATA = HAS_LOCAL_SERVER_PROXY
   ? "/proxy/census-opportunity/"
   : "https://www2.census.gov/ces/opportunity/";
 const POLICY_OVERLAY_URL = "data/policy-overlays.json?v=20260509-policy-overlays";
+const ANCESTRY_OVERLAY_URL = "data/ancestry-tracts.json?v=20260817-bright-regions-v2";
 const ELECTION_STATE_INDEX_URL = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 const ELECTION_PRECINCT_URL = "https://int.nyt.com/newsgraphics/elections/map-data/2024/national/{state}-precincts-with-results.topojson.gz";
 const OPPORTUNITY_SUBGROUP = "rP_gP_p25_e";
@@ -263,7 +264,22 @@ const OPPORTUNITY_OVERLAYS = [
   { id: "d_share_foreign_born", title: "Change in Foreign-Born Share", type: "characteristic", description: "Percentage point change in residents born outside the United States", textFormat: "percentagePoint", colorScheme: "divergingPurpleGreen", tractDisabled: true },
   { id: "d_frac_single_parents", title: "Change in Fraction of Single-Parent Households", type: "characteristic", description: "Percentage point change in households with children whose head of household was single", textFormat: "percentagePoint", colorScheme: "divergingPurpleGreen", tractDisabled: true }
 ];
-const OPPORTUNITY_BY_ID = Object.fromEntries(OPPORTUNITY_OVERLAYS.map((overlay) => [overlay.id, overlay]));
+const ANCESTRY_OPPORTUNITY_OVERLAYS = [
+  {
+    id: "nyt_american_mosaic",
+    title: "An American Mosaic",
+    group: "Ancestry",
+    sourceType: "ancestry-tract",
+    valueType: "ancestry",
+    sourceName: "U.S. Census Bureau, 2024 ACS 5-year",
+    sourceUrl: "https://www.census.gov/data/developers/data-sets/acs-5year.html",
+    inspirationName: "The New York Times — An American Mosaic",
+    inspirationUrl: "https://www.nytimes.com/interactive/2026/07/01/us/america-ancestry-census-data-map.html",
+    description: "The most commonly reported detailed ancestry or identity in each county and census tract."
+  }
+];
+const BUILT_IN_OPPORTUNITY_OVERLAYS = [...OPPORTUNITY_OVERLAYS, ...ANCESTRY_OPPORTUNITY_OVERLAYS];
+const OPPORTUNITY_BY_ID = Object.fromEntries(BUILT_IN_OPPORTUNITY_OVERLAYS.map((overlay) => [overlay.id, overlay]));
 const OPPORTUNITY_CREDIT_SOURCES = {
   cred_score: { file: "opportunity_atlas_avg_credit_score_2020_cty.csv", column: "shrunk_xkid_vscore2020" },
   deliq_rate: { file: "opportunity_atlas_avg_delinq_rate_2020_cty.csv", column: "shrunk_xkid_delinq90_02020" },
@@ -1842,6 +1858,8 @@ const state = {
   opportunityData: null,
   opportunityDataCache: new Map(),
   opportunityStyleCache: new Map(),
+  ancestryBreakdownCache: new Map(),
+  ancestryBreakdownLoadToken: 0,
   policyOverlayCatalog: null,
   policyOverlayById: new Map(),
   electionOverlay: localStorage.getItem("censusMapElectionOverlay") || "none",
@@ -2210,6 +2228,7 @@ const map = new ol.Map({
     new ol.interaction.MouseWheelZoom({ duration: 120, timeout: 40 })
   ]),
   view: new ol.View({
+    projection: "EPSG:3857",
     center: ol.proj.fromLonLat([-98.58, 39.83]),
     zoom: 4,
     minZoom: 3,
@@ -2221,7 +2240,7 @@ window.urbanAreaApp = {
   map,
   variant: APP_VARIANT,
   geographyTypes: availableGeographyTypes(),
-  opportunityOverlays: HAS_OPPORTUNITY_OVERLAYS ? OPPORTUNITY_OVERLAYS : [],
+  opportunityOverlays: HAS_OPPORTUNITY_OVERLAYS ? BUILT_IN_OPPORTUNITY_OVERLAYS : [],
   electionOverlays: HAS_ELECTION_OVERLAYS ? ELECTION_OVERLAYS : [],
   policyOverlays: () => policyOverlays(),
   layers: {
@@ -2739,7 +2758,7 @@ async function loadPolicyOverlayCatalog() {
   const overlays = Array.isArray(catalog?.overlays) ? catalog.overlays : [];
   state.policyOverlayCatalog = { ...catalog, overlays };
   state.policyOverlayById = new Map(overlays.map((overlay) => [overlay.id, overlay]));
-  window.urbanAreaApp.opportunityOverlays = [...OPPORTUNITY_OVERLAYS, ...overlays];
+  window.urbanAreaApp.opportunityOverlays = [...BUILT_IN_OPPORTUNITY_OVERLAYS, ...overlays];
   return state.policyOverlayCatalog;
 }
 
@@ -2805,6 +2824,27 @@ function opportunityStyleForFeature(feature, layerName) {
   }
 
   const value = data.lookup[layerName]?.get(opportunityFeatureId(feature, layerName));
+  if (data.overlay.sourceType === "ancestry-tract") {
+    if (!value || typeof value !== "object") return undefined;
+    const identity = data.identities?.get(Number(value.identityId));
+    const category = data.categories?.get(String(identity?.category || ""));
+    const color = identity?.color || category?.color;
+    if (!color) return undefined;
+    const cacheKey = `${data.overlay.id}:${color}:${layerName}`;
+    if (!state.opportunityStyleCache.has(cacheKey)) {
+      state.opportunityStyleCache.set(
+        cacheKey,
+        new ol.style.Style({
+          fill: new ol.style.Fill({ color: hexToRgba(color, layerName === "tract" ? 0.84 : 0.82) }),
+          stroke: new ol.style.Stroke({
+            color: layerName === "tract" ? "rgba(255, 255, 255, 0.2)" : "rgba(255, 255, 255, 0.3)",
+            width: layerName === "tract" ? 0.25 : 0.5
+          })
+        })
+      );
+    }
+    return state.opportunityStyleCache.get(cacheKey);
+  }
   if (!Number.isFinite(value)) return undefined;
 
   const color = opportunityColor(value, data);
@@ -3377,10 +3417,106 @@ async function loadPolicyStateData(overlay) {
   return opportunityDataFromLookup(overlay, overlay.id, lookup);
 }
 
+function ancestryEntryFromCompact(row) {
+  if (!Array.isArray(row) || row.length < 3) return null;
+  const identityId = Number(row[0]);
+  const count = Number(row[1]);
+  const total = Number(row[2]);
+  if (!Number.isFinite(identityId) || !Number.isFinite(count) || !Number.isFinite(total) || total <= 0) return null;
+  const top = [{ identityId, count }];
+  for (let index = 3; index + 1 < row.length; index += 2) {
+    const nextIdentityId = Number(row[index]);
+    const nextCount = Number(row[index + 1]);
+    if (Number.isFinite(nextIdentityId) && Number.isFinite(nextCount)) {
+      top.push({ identityId: nextIdentityId, count: nextCount });
+    }
+  }
+  return { identityId, count, total, top };
+}
+
+async function loadAncestryOpportunityData(overlay) {
+  const payload = await fetchJsonWithRetry(ANCESTRY_OVERLAY_URL, { cache: "force-cache" }, 2);
+  if (payload?.projection !== "EPSG:3857") throw new Error("The ancestry overlay is not prepared for Web Mercator.");
+
+  const lookup = { cty: new Map(), tract: new Map(), state: new Map() };
+  for (const [geoid, row] of Object.entries(payload.counties || {})) {
+    const entry = ancestryEntryFromCompact(row);
+    if (entry) lookup.cty.set(`cty${String(geoid).padStart(5, "0")}`, entry);
+  }
+  for (const [geoid, row] of Object.entries(payload.tracts || {})) {
+    const entry = ancestryEntryFromCompact(row);
+    if (entry) lookup.tract.set(String(Number(geoid)), entry);
+  }
+
+  const identities = new Map((payload.identities || []).map((identity) => [Number(identity.id), identity]));
+  const categoryList = Array.isArray(payload.categories) ? payload.categories : [];
+  const categories = new Map(categoryList.map((category) => [String(category.id), category]));
+  return {
+    overlay,
+    key: overlay.id,
+    lookup,
+    identities,
+    categories,
+    categoryList,
+    release: payload.release || "",
+    projection: payload.projection,
+    methodology: payload.methodology || "",
+    source: payload.source || null,
+    inspiration: payload.inspiration || null,
+    breakdownUrlTemplate: payload.breakdowns?.urlTemplate || "",
+    breakdownStates: new Set(payload.breakdowns?.states || []),
+    values: [],
+    min: 0,
+    max: 1,
+    rawMin: 0,
+    rawMax: 1
+  };
+}
+
+function paddedAncestryTractGeoid(tractId) {
+  const digits = String(tractId || "").replace(/\D/g, "");
+  return digits.padStart(11, "0").slice(-11);
+}
+
+async function loadAncestryStateBreakdowns(stateFips, data) {
+  const key = String(stateFips).padStart(2, "0");
+  if (state.ancestryBreakdownCache.has(key)) return state.ancestryBreakdownCache.get(key);
+  if (!data.breakdownUrlTemplate) throw new Error("The full ancestry breakdown files are unavailable.");
+  if (data.breakdownStates.size && !data.breakdownStates.has(key)) throw new Error("No ancestry breakdown is available for this state.");
+
+  const promise = fetchJsonWithRetry(data.breakdownUrlTemplate.replace("{state}", key), { cache: "force-cache" }, 2);
+  state.ancestryBreakdownCache.set(key, promise);
+  try {
+    const payload = await promise;
+    state.ancestryBreakdownCache.set(key, payload);
+    return payload;
+  } catch (error) {
+    state.ancestryBreakdownCache.delete(key);
+    throw error;
+  }
+}
+
+async function loadAncestryTractBreakdown(tractId, data) {
+  const paddedGeoid = paddedAncestryTractGeoid(tractId);
+  const payload = await loadAncestryStateBreakdowns(paddedGeoid.slice(0, 2), data);
+  const compact = payload?.tracts?.[String(Number(paddedGeoid))];
+  if (!Array.isArray(compact)) throw new Error("No detailed ancestry estimates were found for this tract.");
+
+  const rows = [];
+  for (let index = 0; index + 1 < compact.length; index += 2) {
+    const identity = data.identities.get(Number(compact[index]));
+    const count = Number(compact[index + 1]);
+    if (!identity || !Number.isFinite(count) || count <= 0) continue;
+    rows.push({ identity, count });
+  }
+  return rows.sort((a, b) => b.count - a.count || a.identity.label.localeCompare(b.identity.label));
+}
+
 async function getOpportunityData(overlay) {
   if (state.opportunityDataCache.has(overlay.id)) return state.opportunityDataCache.get(overlay.id);
   const promise = (async () => {
     if (overlay.sourceType === "policy-state") return loadPolicyStateData(overlay);
+    if (overlay.sourceType === "ancestry-tract") return loadAncestryOpportunityData(overlay);
     if (OPPORTUNITY_CREDIT_SOURCES[overlay.id]) return loadCreditOpportunityData(overlay);
     if (OPPORTUNITY_TREND_COLUMNS[overlay.id]) return loadTrendOpportunityData(overlay);
     if (overlay.id.startsWith("d_")) return loadCovariateChangeOpportunityData(overlay);
@@ -3445,6 +3581,41 @@ function renderOpportunityLegend(status = "idle", message = "") {
       : ` Source: ${escapeHtml(overlay.sourceName)}.`
     : "";
 
+  if (overlay.sourceType === "ancestry-tract") {
+    const categoryList = data?.categoryList || [];
+    const censusName = data?.source?.name || overlay.sourceName;
+    const censusUrl = data?.source?.url || overlay.sourceUrl;
+    const inspirationName = data?.inspiration?.name || overlay.inspirationName;
+    const inspirationUrl = data?.inspiration?.url || overlay.inspirationUrl;
+    elements.opportunityLegend.innerHTML = `
+      <h2>${escapeHtml(overlay.title)}</h2>
+      <p class="legend-subtitle">${escapeHtml(overlay.description)}</p>
+      <div class="legend-list">
+        ${categoryList
+          .map(
+            (item) => `
+              <div class="legend-item">
+                <span class="legend-dot" style="background:${escapeHtml(item.color || "#858b91")}"></span>
+                <span>${escapeHtml(item.label || item.id)}</span>
+              </div>
+            `
+          )
+          .join("")}
+      </div>
+      <p class="legend-note">
+        County colors at low zoom; census tract detail at zoom ${escapeHtml(OPPORTUNITY_TRACT_SWITCH_ZOOM)} and above.
+        Rendered in Web Mercator (EPSG:3857). Hover for a summary; click a tract for its full ancestry breakdown.
+        Vietnamese is grouped with East Asia in this regional color scheme.
+      </p>
+      <p class="legend-note">
+        Source: <a href="${escapeHtml(censusUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(censusName)}</a>.
+        Inspired by <a href="${escapeHtml(inspirationUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(inspirationName)}</a>.
+        People may report more than one ancestry.
+      </p>
+    `;
+    return;
+  }
+
   if (overlay.valueType === "category") {
     const categoryList = overlay.categories?.length
       ? overlay.categories
@@ -3489,6 +3660,7 @@ function renderOpportunityLegend(status = "idle", message = "") {
 }
 
 async function setOpportunityOverlay(id) {
+  state.ancestryBreakdownLoadToken += 1;
   if (!HAS_OPPORTUNITY_OVERLAYS) {
     state.opportunityOverlay = "none";
     state.opportunityData = null;
@@ -6499,6 +6671,18 @@ function populateOpportunitySelect() {
       .join("");
     if (rows) options.push(`<optgroup label="${escapeHtml(label)}">${rows}</optgroup>`);
   }
+  const ancestryGroups = new Map();
+  for (const overlay of ANCESTRY_OPPORTUNITY_OVERLAYS) {
+    const group = overlay.group || "Ancestry";
+    if (!ancestryGroups.has(group)) ancestryGroups.set(group, []);
+    ancestryGroups.get(group).push(overlay);
+  }
+  for (const [group, overlays] of ancestryGroups) {
+    const rows = overlays
+      .map((overlay) => `<option value="${escapeHtml(overlay.id)}">${escapeHtml(overlay.title)}</option>`)
+      .join("");
+    if (rows) options.push(`<optgroup label="${escapeHtml(group)}">${rows}</optgroup>`);
+  }
   const policyGroups = new Map();
   for (const overlay of policyOverlays()) {
     const group = overlay.group || "Policy overlays";
@@ -6725,6 +6909,181 @@ function resetView() {
   });
 }
 
+function ancestryShareDetails(count, total) {
+  if (!Number.isFinite(count) || !Number.isFinite(total) || total <= 0) return { value: 0, label: "Not available" };
+  const value = (count / total) * 100;
+  return {
+    value,
+    label: value > 0 && value < 0.05 ? "<0.1%" : `${decimal(value, 1)}%`
+  };
+}
+
+function ancestryTractName(feature, tractId) {
+  const featureName = displayNameFromFeature(feature);
+  const fullGeoid = fullGeoidFromFeature(feature, GEOGRAPHY_BY_ID.tract);
+  if (featureName && featureName !== fullGeoid) return featureName;
+  return `Census tract ${paddedAncestryTractGeoid(tractId)}`;
+}
+
+function renderAncestryBreakdownProfile({ tractId, tractName, entry, rows, data }) {
+  const leading = rows[0];
+  const leadingShare = ancestryShareDetails(leading?.count, entry.total);
+  const sourceName = data.source?.name || data.overlay.sourceName || "U.S. Census Bureau ACS";
+  const sourceUrl = data.source?.url || data.overlay.sourceUrl || "";
+  const rowsHtml = rows
+    .map(({ identity, count }) => {
+      const category = data.categories.get(String(identity.category));
+      const share = ancestryShareDetails(count, entry.total);
+      const barWidth = Math.max(0.35, Math.min(100, share.value));
+      const searchText = `${identity.label} ${category?.label || ""}`.toLowerCase();
+      return `
+        <div class="ancestry-breakdown-row" data-ancestry-search="${escapeHtml(searchText)}">
+          <div class="ancestry-breakdown-heading">
+            <span class="ancestry-breakdown-name">
+              <span class="ancestry-breakdown-dot" style="background:${escapeHtml(identity.color || category?.color || "#858b91")}"></span>
+              <strong>${escapeHtml(identity.label)}</strong>
+            </span>
+            <strong class="ancestry-breakdown-share">${escapeHtml(share.label)}</strong>
+          </div>
+          <div class="ancestry-breakdown-bar" aria-hidden="true">
+            <span style="width:${barWidth}%;background:${escapeHtml(identity.color || category?.color || "#858b91")}"></span>
+          </div>
+          <div class="ancestry-breakdown-meta">
+            <span>${escapeHtml(category?.label || "Other ancestry")}</span>
+            <span>${escapeHtml(number(count))} estimated people</span>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  elements.profile.innerHTML = `
+    <section class="profile-header ancestry-profile-header">
+      <h2>${escapeHtml(tractName)}</h2>
+      <p>Complete ancestry and identity breakdown for tract GEOID ${escapeHtml(paddedAncestryTractGeoid(tractId))}</p>
+      <div class="headline-grid">
+        ${stat("Leading identity", escapeHtml(leading?.identity.label || "Not available"), escapeHtml(leadingShare.label))}
+        ${stat("Population base", escapeHtml(number(entry.total)), "ACS estimate")}
+        ${stat("Nonzero identities", escapeHtml(number(rows.length)), "Full detailed list")}
+      </div>
+    </section>
+    <section class="section ancestry-breakdown-section">
+      <div class="ancestry-breakdown-title">
+        <h3>Full ancestry breakdown</h3>
+        <span id="ancestry-breakdown-visible-count">${escapeHtml(number(rows.length))} identities</span>
+      </div>
+      <label class="ancestry-breakdown-filter" for="ancestry-breakdown-filter">
+        <span>Filter identities</span>
+        <input id="ancestry-breakdown-filter" type="search" placeholder="Search Irish, Mexican, Korean...">
+      </label>
+      <div id="ancestry-breakdown-list" class="ancestry-breakdown-list">${rowsHtml}</div>
+      <p class="source-note">
+        All nonzero detailed estimates are shown. Ancestry and race/ethnicity responses can overlap, so percentages are not intended to sum to 100%.
+        Source: ${sourceUrl ? `<a href="${escapeHtml(sourceUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(sourceName)}</a>` : escapeHtml(sourceName)}.
+      </p>
+    </section>
+  `;
+
+  const filter = document.querySelector("#ancestry-breakdown-filter");
+  const list = document.querySelector("#ancestry-breakdown-list");
+  const visibleCount = document.querySelector("#ancestry-breakdown-visible-count");
+  filter?.addEventListener("input", () => {
+    const query = filter.value.trim().toLowerCase();
+    let shown = 0;
+    for (const row of list?.querySelectorAll(".ancestry-breakdown-row") || []) {
+      const visible = !query || row.dataset.ancestrySearch.includes(query);
+      row.hidden = !visible;
+      if (visible) shown += 1;
+    }
+    if (visibleCount) visibleCount.textContent = `${number(shown)} ${shown === 1 ? "identity" : "identities"}`;
+  });
+}
+
+async function openAncestryTractBreakdown(feature, entry) {
+  const data = state.opportunityData;
+  if (!data || data.overlay.sourceType !== "ancestry-tract") return;
+  const tractId = opportunityFeatureId(feature, "tract");
+  const tractName = ancestryTractName(feature, tractId);
+  const token = state.ancestryBreakdownLoadToken + 1;
+  state.ancestryBreakdownLoadToken = token;
+  elements.profile.innerHTML = `
+    <div class="loading-state">
+      <h2>${escapeHtml(tractName)}</h2>
+      <p>Loading the full ancestry breakdown...</p>
+    </div>
+  `;
+  elements.profile.scrollIntoView({ behavior: "smooth", block: "start" });
+
+  try {
+    const rows = await loadAncestryTractBreakdown(tractId, data);
+    if (token !== state.ancestryBreakdownLoadToken || state.opportunityData !== data) return;
+    renderAncestryBreakdownProfile({ tractId, tractName, entry, rows, data });
+  } catch (error) {
+    if (token !== state.ancestryBreakdownLoadToken) return;
+    elements.profile.innerHTML = `
+      <div class="error-state">
+        <h2>${escapeHtml(tractName)}</h2>
+        <p>The full ancestry breakdown could not be loaded.</p>
+        <p class="stat-note">${escapeHtml(error.message)}</p>
+      </div>
+    `;
+  }
+}
+
+function ancestryTractHitAtPixel(pixel) {
+  const overlay = activeOpportunityOverlay();
+  const data = state.opportunityData;
+  if (
+    overlay?.sourceType !== "ancestry-tract" ||
+    !data ||
+    data.overlay.id !== overlay.id ||
+    map.getView().getZoom() < OPPORTUNITY_TRACT_SWITCH_ZOOM
+  ) {
+    return null;
+  }
+  const feature = map.forEachFeatureAtPixel(pixel, (item) => item, {
+    layerFilter: (layer) => layer === opportunityTractLayer,
+    hitTolerance: 3
+  });
+  if (!feature) return null;
+  const entry = data.lookup.tract.get(opportunityFeatureId(feature, "tract"));
+  return entry ? { feature, entry } : null;
+}
+
+function renderAncestryHover(event) {
+  const overlay = activeOpportunityOverlay();
+  const data = state.opportunityData;
+  if (overlay?.sourceType !== "ancestry-tract" || !data || data.overlay.id !== overlay.id) return false;
+
+  const useTracts = map.getView().getZoom() >= OPPORTUNITY_TRACT_SWITCH_ZOOM && data.lookup.tract.size > 0;
+  const layerName = useTracts ? "tract" : "cty";
+  const ancestryLayer = useTracts ? opportunityTractLayer : opportunityCountyLayer;
+  const feature = map.forEachFeatureAtPixel(event.pixel, (item) => item, {
+    layerFilter: (layer) => layer === ancestryLayer,
+    hitTolerance: 3
+  });
+  const entry = feature ? data.lookup[layerName].get(opportunityFeatureId(feature, layerName)) : null;
+  const identity = entry ? data.identities.get(Number(entry.identityId)) : null;
+  if (!entry || !identity) return false;
+
+  const share = entry.total > 0 ? (entry.count / entry.total) * 100 : null;
+  const runnersUp = entry.top
+    .slice(1)
+    .map((item) => data.identities.get(Number(item.identityId))?.label)
+    .filter(Boolean);
+  map.getTargetElement().style.cursor = "crosshair";
+  elements.hover.innerHTML = `
+    <strong>${escapeHtml(identity.label)}</strong>
+    <span>${escapeHtml(`${share == null ? "Share unavailable" : `${decimal(share, 1)}% reporting`} - ${useTracts ? "census tract" : "county"}`)}</span>
+    ${runnersUp.length ? `<span>${escapeHtml(`Also prominent: ${runnersUp.join(", ")}`)}</span>` : ""}
+    ${useTracts ? "<span>Click for the full ancestry breakdown</span>" : ""}
+  `;
+  elements.hover.style.left = `${event.pixel[0] + 14}px`;
+  elements.hover.style.top = `${event.pixel[1] + 14}px`;
+  elements.hover.hidden = false;
+  return true;
+}
+
 map.on("singleclick", (event) => {
   if (isElectionActive() && state.electionSelectionMode !== "draw") {
     const electionFeature = map.forEachFeatureAtPixel(event.pixel, (item) => item, {
@@ -6735,6 +7094,12 @@ map.on("singleclick", (event) => {
       handleElectionFeatureClick(electionFeature);
       return;
     }
+  }
+
+  const ancestryTractHit = ancestryTractHitAtPixel(event.pixel);
+  if (ancestryTractHit) {
+    openAncestryTractBreakdown(ancestryTractHit.feature, ancestryTractHit.entry);
+    return;
   }
 
   const boundaryLayer = visibleBoundaryLayer();
@@ -6772,6 +7137,8 @@ map.on("pointermove", (event) => {
       return;
     }
   }
+
+  if (renderAncestryHover(event)) return;
 
   const boundaryLayer = visibleBoundaryLayer();
   const feature = map.forEachFeatureAtPixel(

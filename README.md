@@ -10,6 +10,14 @@ https://pekingperson.github.io/United-States-Comprehensive-Geographic-Interactiv
 
 The GitHub Pages version runs as a static website with Esri's public World Light Gray base and reference tiles. The map background and place labels do not require an API key. The local server version enables the full proxy-backed experience, including Census Reporter base tiles, live school/offical lookup endpoints, and optional Google Maps satellite/3D tiles.
 
+## Ancestry Overlay
+
+Select **Ancestry → An American Mosaic** in the Opportunity Atlas overlay dropdown. The map shows the most commonly reported detailed ancestry or identity, with county colors at national zoom and census tract detail when zoomed in. Click a tract for its full list of nonzero estimates, percentages, and identity search.
+
+The overlay uses 2024 ACS 5-year data in Web Mercator with 13 regional colors. East Asia and Southeast Asia are separate; Vietnamese is grouped with East Asia. Estimates can overlap, so percentages do not sum to 100%.
+
+The national index and all 52 state breakdown files are bundled for GitHub Pages. Refresh them with `npm run ancestry-data`.
+
 ## Run Locally
 
 Install Node.js, then run:
