@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Census boundary fallback regression check</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@10.2.1/ol.css">
+    <style>
+      body { margin: 0; font: 16px sans-serif; }
+      header { padding: 12px; }
+      #map { height: 65vh; background: #eee; }
+      #result { padding: 12px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>Census fallback test: primary tiles deliberately return 404</strong>
+      <label>City
+        <select id="city"><option>Seattle</option><option>Bay Area</option><option>Dallas</option></select>
+      </label>
+    </header>
+    <div id="map"></div>
+    <output id="result" aria-live="polite">Loading ancestry data...</output>
+    <script src="https://cdn.jsdelivr.net/npm/ol@10.2.1/dist/ol.js"></script>
+    <script src="../assets/census-boundary-source.js"></script>
+    <script>
+      const cities = { Seattle: [-122.33, 47.61], "Bay Area": [-122.04, 37.60], Dallas: [-96.80, 32.78] };
+      const result = document.querySelector("#result");
+      const source = CensusBoundarySource.createSource(ol, { sumlevel: "140", url: "./deliberately-missing-tile/{z}/{x}/{y}.mvt" });
+      let data;
+      let loaded = 0;
+      let failures = 0;
+      let matched = 0;
+      function report() { result.textContent = `${loaded} fallback tiles loaded; ${failures} failed; ${matched} matching tract features.`; }
+      source.on("tileloadend", (event) => {
+        loaded += 1;
+        matched += event.tile.getFeatures().filter((feature) => data?.tracts[Number(feature.get("GEOID"))]).length;
+        report();
+      });
+      source.on("tileloaderror", () => { failures += 1; report(); });
+      const styles = new Map();
+      const layer = new ol.layer.VectorTile({
+        source, renderMode: "vector", updateWhileAnimating: true,
+        style(feature) {
+          const row = data?.tracts[Number(feature.get("GEOID"))];
+          const identity = row && data.identities.find((entry) => entry.id === row[0]);
+          if (!identity) return undefined;
+          if (!styles.has(identity.color)) styles.set(identity.color, new ol.style.Style({
+            fill: new ol.style.Fill({ color: identity.color }),
+            stroke: new ol.style.Stroke({ color: "#fff", width: 0.5 })
+          }));
+          return styles.get(identity.color);
+        }
+      });
+      const map = new ol.Map({ target: "map", layers: [layer], view: new ol.View({ center: ol.proj.fromLonLat(cities.Seattle), zoom: 12 }) });
+      document.querySelector("#city").addEventListener("change", (event) => map.getView().setCenter(ol.proj.fromLonLat(cities[event.target.value])));
+      fetch("../data/ancestry-tracts.json").then((response) => response.json()).then((payload) => {
+        data = payload;
+        layer.changed();
+        report();
+      }).catch((error) => { result.textContent = error.message; });
+    </script>
+  </body>
+</html>

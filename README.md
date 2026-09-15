@@ -18,6 +18,8 @@ The overlay uses 2024 ACS 5-year data in Web Mercator with 13 regional colors. E
 
 The national index and all 52 state breakdown files are bundled for GitHub Pages. Refresh them with `npm run ancestry-data`.
 
+Boundary polygons use vector rendering to stay sharp while zooming. If Census Reporter tiles are unavailable or rate-limited, the overlay loads matching ACS 2024 boundaries directly from Census TIGERweb. Run `npm run test:map` for loading/projection regression checks. For a visual fallback check, serve the project locally and open `tests/boundary-fallback.html`, which deliberately uses an unavailable primary tile URL.
+
 ## Run Locally
 
 Install Node.js, then run:

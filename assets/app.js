@@ -2085,34 +2085,32 @@ const labelLayer = new ol.layer.Tile({
 labelLayer.setZIndex(1.5);
 
 const opportunityCountyLayer = new ol.layer.VectorTile({
-  source: new ol.source.VectorTile({
-    format: mvtFormat,
+  source: CensusBoundarySource.createSource(ol, {
+    sumlevel: "050",
     url: BOUNDARY_TILE.replace("{sumlevel}", "050"),
-    maxZoom: 14,
-    transition: 0,
     cacheSize: 256
   }),
   minZoom: 3,
+  renderMode: "vector",
   renderBuffer: 48,
-  updateWhileAnimating: false,
-  updateWhileInteracting: false,
+  updateWhileAnimating: true,
+  updateWhileInteracting: true,
   style: (feature) => opportunityStyleForFeature(feature, "cty"),
   visible: false
 });
 opportunityCountyLayer.setZIndex(1.3);
 
 const opportunityTractLayer = new ol.layer.VectorTile({
-  source: new ol.source.VectorTile({
-    format: mvtFormat,
+  source: CensusBoundarySource.createSource(ol, {
+    sumlevel: "140",
     url: BOUNDARY_TILE.replace("{sumlevel}", "140"),
-    maxZoom: 14,
-    transition: 0,
     cacheSize: 192
   }),
   minZoom: OPPORTUNITY_TRACT_SWITCH_ZOOM,
+  renderMode: "vector",
   renderBuffer: 48,
-  updateWhileAnimating: false,
-  updateWhileInteracting: false,
+  updateWhileAnimating: true,
+  updateWhileInteracting: true,
   style: (feature) => opportunityStyleForFeature(feature, "tract"),
   visible: false
 });
@@ -2819,9 +2817,6 @@ function opportunityColor(value, data) {
 function opportunityStyleForFeature(feature, layerName) {
   const data = state.opportunityData;
   if (!data || data.overlay.id !== state.opportunityOverlay) return undefined;
-  if (layerName === "cty" && data.lookup.tract.size && map?.getView().getZoom() >= OPPORTUNITY_TRACT_SWITCH_ZOOM) {
-    return undefined;
-  }
 
   const value = data.lookup[layerName]?.get(opportunityFeatureId(feature, layerName));
   if (data.overlay.sourceType === "ancestry-tract") {
@@ -3542,6 +3537,7 @@ function updateOpportunityLayerVisibility() {
   }
   const data = state.opportunityData;
   const visible = Boolean(activeOpportunityOverlay() && data);
+  opportunityCountyLayer.setMaxZoom(data?.lookup.tract.size ? OPPORTUNITY_TRACT_SWITCH_ZOOM : Infinity);
   opportunityCountyLayer.setVisible(visible && data.lookup.cty.size > 0);
   opportunityTractLayer.setVisible(visible && data.lookup.tract.size > 0);
   opportunityStateLayer.setVisible(visible && data.lookup.state.size > 0);
@@ -7037,7 +7033,7 @@ function ancestryTractHitAtPixel(pixel) {
     overlay?.sourceType !== "ancestry-tract" ||
     !data ||
     data.overlay.id !== overlay.id ||
-    map.getView().getZoom() < OPPORTUNITY_TRACT_SWITCH_ZOOM
+    map.getView().getZoom() <= OPPORTUNITY_TRACT_SWITCH_ZOOM
   ) {
     return null;
   }
@@ -7055,7 +7051,7 @@ function renderAncestryHover(event) {
   const data = state.opportunityData;
   if (overlay?.sourceType !== "ancestry-tract" || !data || data.overlay.id !== overlay.id) return false;
 
-  const useTracts = map.getView().getZoom() >= OPPORTUNITY_TRACT_SWITCH_ZOOM && data.lookup.tract.size > 0;
+  const useTracts = map.getView().getZoom() > OPPORTUNITY_TRACT_SWITCH_ZOOM && data.lookup.tract.size > 0;
   const layerName = useTracts ? "tract" : "cty";
   const ancestryLayer = useTracts ? opportunityTractLayer : opportunityCountyLayer;
   const feature = map.forEachFeatureAtPixel(event.pixel, (item) => item, {
