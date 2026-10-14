@@ -1273,7 +1273,7 @@ const DETAIL_TABLES = [
   "B25077",
   "B25103",
   "B15003",
-  "B16001",
+  "B16004",
   "B05002",
   "B21001",
   "B03002",
@@ -2117,11 +2117,9 @@ const opportunityTractLayer = new ol.layer.VectorTile({
 opportunityTractLayer.setZIndex(1.35);
 
 const opportunityStateLayer = new ol.layer.VectorTile({
-  source: new ol.source.VectorTile({
-    format: mvtFormat,
+  source: CensusBoundarySource.createSource(ol, {
+    sumlevel: "040",
     url: BOUNDARY_TILE.replace("{sumlevel}", "040"),
-    maxZoom: 14,
-    transition: 0,
     cacheSize: 128
   }),
   minZoom: 3,
@@ -2412,11 +2410,9 @@ function styleBoundaryFeature(feature) {
 function boundaryTileLayerFor(type) {
   if (state.boundaryTileLayers.has(type.id)) return state.boundaryTileLayers.get(type.id);
 
-  const source = new ol.source.VectorTile({
-    format: mvtFormat,
+  const source = CensusBoundarySource.createSource(ol, {
+    sumlevel: type.sumlevel,
     url: BOUNDARY_TILE.replace("{sumlevel}", type.sumlevel),
-    maxZoom: 14,
-    transition: 0,
     cacheSize: 384
   });
 
@@ -3741,8 +3737,8 @@ function buildMetrics(data) {
     "B15003",
     Array.from({ length: 4 }, (_, index) => `B15003${String(index + 22).padStart(3, "0")}`)
   );
-  const languageTotal = metric(data, "B16001", "B16001001");
-  const englishOnly = metric(data, "B16001", "B16001002");
+  const languageTotal = metric(data, "B16004", "B16004001");
+  const englishOnly = sumMetrics(data, "B16004", ["B16004003", "B16004025", "B16004047"]);
   const foreignBorn = metric(data, "B05002", "B05002013");
   const foreignBornTotal = metric(data, "B05002", "B05002001");
   const raceTotal = metric(data, "B03002", "B03002001");
@@ -3768,7 +3764,7 @@ function buildMetrics(data) {
     medianRealEstateTaxesWithoutMortgage: metric(data, "B25103", "B25103003"),
     highSchoolRate: percentage(highSchoolPlus, educationTotal),
     bachelorsRate: percentage(bachelorsPlus, educationTotal),
-    nonEnglishRate: percentage(languageTotal - englishOnly, languageTotal),
+    nonEnglishRate: percentage(languageTotal != null && englishOnly != null ? languageTotal - englishOnly : null, languageTotal),
     foreignBornRate: percentage(foreignBorn, foreignBornTotal),
     foreignBorn,
     meanCommute: aggregateMinutes && workers ? Math.round((aggregateMinutes / workers) * 10) / 10 : null,
@@ -4421,27 +4417,7 @@ async function loadBoundaryOverlay() {
 }
 
 async function fetchDetailTables(geoid) {
-  const url = new URL(`${CR_API}/data/show/latest`);
-  url.search = new URLSearchParams({
-    table_ids: DETAIL_TABLES.join(","),
-    geo_ids: geoid
-  }).toString();
-
-  const response = await fetch(url);
-  if (response.ok) return response.json();
-
-  const merged = { release: null, data: { [geoid]: {} }, geography: {} };
-  for (const table of DETAIL_TABLES) {
-    const tableUrl = new URL(`${CR_API}/data/show/latest`);
-    tableUrl.search = new URLSearchParams({ table_ids: table, geo_ids: geoid }).toString();
-    const tableResponse = await fetch(tableUrl);
-    if (!tableResponse.ok) continue;
-    const result = await tableResponse.json();
-    merged.release ??= result.release;
-    Object.assign(merged.geography, result.geography || {});
-    Object.assign(merged.data[geoid], result.data?.[geoid] || {});
-  }
-  return merged;
+  return CensusProfileSource.loadTables(geoid, DETAIL_TABLES);
 }
 
 async function loadProfile(geoid) {
@@ -4469,18 +4445,21 @@ async function loadProfile(geoid) {
     return profile;
   }
 
-  const [metadata, detail] = await Promise.all([
-    fetch(`${CR_API}/geo/tiger2024/${geoid}`).then((response) => {
-      if (!response.ok) throw new Error("Census Reporter metadata request failed");
-      return response.json();
-    }),
-    fetchDetailTables(geoid)
-  ]);
+  const selectedName = state.selectedGeoid === geoid ? state.selectedName : "";
+  let detail;
+  try {
+    detail = await fetchDetailTables(geoid);
+  } catch (error) {
+    if (!indexArea) throw error;
+    const profile = localUrbanProfile(geoid, indexArea);
+    profile.notice = "Live details are temporarily unavailable. Showing the saved urban-area statistics.";
+    return profile;
+  }
 
   const profile = {
     metadata: {
-      ...(state.geometryCache.get(geoid)?.features?.[0]?.properties || {}),
-      ...(metadata.properties || {})
+      display_name: detail.geography?.[geoid]?.name || indexArea?.name || selectedName || geoid,
+      ...(state.geometryCache.get(geoid)?.features?.[0]?.properties || {})
     },
     detail,
     metrics: buildMetrics(detail.data?.[geoid] || {})
@@ -5899,14 +5878,18 @@ async function loadDetailedGeometry(geoid) {
   if (state.geometryCache.has(geoid)) return state.geometryCache.get(geoid);
 
   const indexArea = areaByGeoid(geoid);
-  if (indexArea?.isMergedUrbanArea) return loadLocalUrbanGeometry(geoid);
+  if (indexArea) return loadLocalUrbanGeometry(geoid);
 
   const url = new URL(`${CR_API}/geo/tiger2024/${geoid}`);
   url.search = new URLSearchParams({ geom: "true" }).toString();
 
-  const response = await fetch(url);
-  if (!response.ok) throw new Error("Detailed boundary request failed");
-  const result = await response.json();
+  let result;
+  try {
+    result = await CensusProfileSource.readJson(url);
+    if (!result.geometry) throw new Error("Detailed boundary is missing");
+  } catch {
+    result = await CensusBoundarySource.loadGeometry(geoid);
+  }
   const properties = result.properties || {};
   const profile = state.profileCache.get(geoid);
   if (profile?.metadata) {
@@ -5944,7 +5927,7 @@ function fitGeoidFeature(geoid, feature) {
 
   map.getView().fit(extent, {
     padding: [70, 70, 70, 70],
-    maxZoom: geoid === "01000US" ? 4 : 10,
+    maxZoom: geoid === "01000US" ? 4 : Math.max(10, geographyForGeoid(geoid).minZoom + 1),
     duration: FIT_DURATION
   });
 }
@@ -6033,6 +6016,8 @@ function renderProfile(geoid, profile, extras = {}) {
     <div class="profile-header">
       <h2>${escapeHtml(name)}</h2>
       <p class="profile-subtitle">${escapeHtml(translatedTypeLabel(type))} - ${escapeHtml(geoid)} - ${escapeHtml(release)}</p>
+      ${profile.notice ? `<p class="stat-note" role="status">${escapeHtml(profile.notice)}</p>` : ""}
+      ${profile.detail.unavailableTables?.length ? `<p class="stat-note">Some statistics are not published for this geography and are shown as unavailable.</p>` : ""}
       <div class="headline-grid">
         ${stat("Population", number(population))}
         ${stat("Density", density == null ? tr("Not available") : `${decimal(density, 1)} / sq mi`, land == null ? "Land area not available" : tr("{count} square miles", { count: number(land) }))}
@@ -6156,8 +6141,10 @@ function renderError(geoid, error) {
       <h2>${escapeHtml(tr("Profile unavailable"))}</h2>
       <p>${escapeHtml(tr("Census Reporter did not return profile data for {geoid}.", { geoid }))}</p>
       <p class="stat-note">${escapeHtml(error.message)}</p>
+      <button id="retry-profile" type="button">Retry profile</button>
     </div>
   `;
+  document.querySelector("#retry-profile")?.addEventListener("click", () => selectArea(geoid, { fit: false }));
 }
 
 function pageUrlWithoutHash() {
@@ -6216,6 +6203,8 @@ async function selectArea(geoid, options = {}) {
 
   try {
     const profile = await loadProfile(geoid);
+    if (state.selectedGeoid !== geoid) return;
+    renderProfile(geoid, profile);
     const extras = await loadGeographyExtras(geoid, profile);
     if (state.selectedGeoid === geoid) renderProfile(geoid, profile, extras);
   } catch (error) {

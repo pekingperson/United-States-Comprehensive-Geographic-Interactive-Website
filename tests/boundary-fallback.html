@@ -17,6 +17,14 @@
       <label>City
         <select id="city"><option>Seattle</option><option>Bay Area</option><option>Dallas</option></select>
       </label>
+      <label>Boundary type
+        <select id="boundary-type">
+          <option value="140">Tracts (ancestry)</option><option value="050">Counties</option>
+          <option value="160">Places and CDPs</option><option value="310">Metro and micro areas</option>
+          <option value="860">ZIP codes</option><option value="150">Block groups</option>
+          <option value="040">States</option><option value="010">Nation</option>
+        </select>
+      </label>
     </header>
     <div id="map"></div>
     <output id="result" aria-live="polite">Loading ancestry data...</output>
@@ -25,22 +33,28 @@
     <script>
       const cities = { Seattle: [-122.33, 47.61], "Bay Area": [-122.04, 37.60], Dallas: [-96.80, 32.78] };
       const result = document.querySelector("#result");
-      const source = CensusBoundarySource.createSource(ol, { sumlevel: "140", url: "./deliberately-missing-tile/{z}/{x}/{y}.mvt" });
+      function fallbackSource(sumlevel) {
+        const source = CensusBoundarySource.createSource(ol, { sumlevel, url: `./deliberately-missing-tile/${sumlevel}/{z}/{x}/{y}.mvt` });
+        source.on("tileloadend", (event) => {
+          if (source !== layer.getSource()) return;
+          loaded += 1;
+          matched += event.tile.getFeatures().filter((feature) => sumlevel !== "140" || data?.tracts[Number(feature.get("GEOID"))]).length;
+          report();
+        });
+        source.on("tileloaderror", () => { if (source === layer.getSource()) { failures += 1; report(); } });
+        return source;
+      }
       let data;
       let loaded = 0;
       let failures = 0;
       let matched = 0;
       function report() { result.textContent = `${loaded} fallback tiles loaded; ${failures} failed; ${matched} matching tract features.`; }
-      source.on("tileloadend", (event) => {
-        loaded += 1;
-        matched += event.tile.getFeatures().filter((feature) => data?.tracts[Number(feature.get("GEOID"))]).length;
-        report();
-      });
-      source.on("tileloaderror", () => { failures += 1; report(); });
       const styles = new Map();
+      const boundaryStyle = new ol.style.Style({ fill: new ol.style.Fill({ color: "#00a3ff30" }), stroke: new ol.style.Stroke({ color: "#005a8d", width: 2 }) });
       const layer = new ol.layer.VectorTile({
-        source, renderMode: "vector", updateWhileAnimating: true,
+        source: fallbackSource("140"), renderMode: "vector", updateWhileAnimating: true,
         style(feature) {
+          if (document.querySelector("#boundary-type").value !== "140") return boundaryStyle;
           const row = data?.tracts[Number(feature.get("GEOID"))];
           const identity = row && data.identities.find((entry) => entry.id === row[0]);
           if (!identity) return undefined;
@@ -52,6 +66,11 @@
         }
       });
       const map = new ol.Map({ target: "map", layers: [layer], view: new ol.View({ center: ol.proj.fromLonLat(cities.Seattle), zoom: 12 }) });
+      document.querySelector("#boundary-type").addEventListener("change", (event) => {
+        loaded = failures = matched = 0;
+        layer.setSource(fallbackSource(event.target.value));
+        report();
+      });
       document.querySelector("#city").addEventListener("change", (event) => map.getView().setCenter(ol.proj.fromLonLat(cities[event.target.value])));
       fetch("../data/ancestry-tracts.json").then((response) => response.json()).then((payload) => {
         data = payload;

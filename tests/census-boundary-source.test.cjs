@@ -19,6 +19,7 @@ function setup(fetch, options = {}) {
   const formats = [];
   const ol = {
     format: {
+      GeoJSON: class { readFeatures(payload) { return [payload]; } },
       MVT: class { readFeatures(bytes, settings) {
         formats.push({ format: "mvt", settings });
         if (options.invalidMvt) throw new Error("Invalid MVT");
@@ -31,8 +32,8 @@ function setup(fetch, options = {}) {
     },
     source: { VectorTile: class { constructor(settings) { this.settings = settings; } } }
   };
-  const source = context.module.exports.createSource(ol, { sumlevel: "140", url: primaryUrl });
-  return { source, formats };
+  const source = context.module.exports.createSource(ol, { sumlevel: options.sumlevel || "140", url: primaryUrl });
+  return { source, formats, api: context.module.exports };
 }
 
 function loadTile(source) {
@@ -160,4 +161,50 @@ test("county visibility switches at the tract threshold and remains available fo
   context.state.opportunityData.lookup.tract.clear();
   vm.runInContext("updateOpportunityLayerVisibility();", context);
   assert.equal(county.maxZoom, Infinity);
+});
+
+test("every non-urban map boundary has a working independent fallback", async () => {
+  const levels = {
+    "020": [62], "030": [60], "040": [80], "050": [82], "060": [22], "140": [8],
+    "150": [10], "160": [28, 30], "252": [36, 38, 40], "310": [93, 91], "330": [97],
+    "500": [54], "610": [56], "620": [58], "795": [0], "860": [2], "970": [14]
+  };
+  for (const [sumlevel, expected] of Object.entries(levels)) {
+    const layers = [];
+    const { source } = setup(async (url) => {
+      if (url === primaryUrl) return new Response("Blocked", { status: 429 });
+      layers.push(Number(new URL(url).pathname.split("/").at(-2)));
+      return json({ features: [row("12345")] });
+    }, { sumlevel });
+    assert.equal((await loadTile(source)).state, 2);
+    assert.deepEqual(layers, expected, sumlevel);
+  }
+});
+
+test("national tiles reuse one geographic outline when the tile provider is blocked", async () => {
+  let outlines = 0;
+  const { source } = setup(async (url) => {
+    if (url === primaryUrl) return new Response("Blocked", { status: 429 });
+    outlines += 1;
+    return json({ type: "Feature", properties: { full_geoid: "01000US" }, geometry: { type: "MultiPolygon", coordinates: [] } });
+  }, { sumlevel: "010" });
+  assert.equal((await loadTile(source)).features[0].properties.full_geoid, "01000US");
+  assert.equal((await loadTile(source)).state, 2);
+  assert.equal(outlines, 1);
+});
+
+test("selected-place geometry checks incorporated places and CDPs and retains land area", async () => {
+  const calls = [];
+  const { api } = setup(async (url) => {
+    calls.push(url);
+    return json({ features: calls.length === 1 ? [] : [{ type: "Feature", geometry: { type: "Polygon", coordinates: [] },
+      properties: { NAME: "Example CDP", GEOID: "5312345", AREALAND: 5000, AREAWATER: 200 } }] });
+  });
+  const result = await api.loadGeometry("16000US5312345");
+  assert.equal(result.properties.full_geoid, "16000US5312345");
+  assert.equal(result.properties.aland, 5000);
+  assert.equal(new URL(calls[1]).searchParams.get("where"), "GEOID='5312345'");
+  assert.match(calls[0], /MapServer\/28\/query/);
+  assert.match(calls[1], /MapServer\/30\/query/);
+  await assert.rejects(api.loadGeometry("16000US';bad"), /No Census geometry fallback/);
 });
