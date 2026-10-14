@@ -55,6 +55,8 @@ npm run data
 
 The generated `data/` files are committed so the website can open without running the data build step.
 
+Profile statistics are also bundled from the official 2020–2024 ACS Summary File, so Census Reporter outages do not prevent profiles from loading. Refresh them with `npm run census-profile-data`; run `npm run test:map` to validate. See [profile data coverage and loading behavior](docs/census-profile-loading.md).
+
 ## School District Data
 
 School district profiles use the committed manual cache first, then official public data from the Urban Institute Education Data API. Those official fields come from NCES CCD, CRDC, EDFacts, and SAIPE datasets. Niche and US News profile links are shown for current third-party ratings and rankings; their proprietary grade/review/ranking tables should only be added to the manual cache when licensed or manually verified for reuse.

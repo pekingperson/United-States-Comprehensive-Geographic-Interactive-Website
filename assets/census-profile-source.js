@@ -1,6 +1,8 @@
 (function (root) {
   const API = "https://api.censusreporter.org/1.0";
+  const BUNDLE_VERSION = "20261014-local-profiles";
   const requests = new Map();
+  const bundledFiles = new Map();
 
   async function readJson(url) {
     for (let attempt = 0; attempt < 2; attempt += 1) {
@@ -64,15 +66,93 @@
     return result;
   }
 
+  function shardFor(geoid) {
+    const match = /^(\d{3})00US([0-9A-Z-]*)$/.exec(geoid);
+    if (!match) return null;
+    const prefix = match[2].slice(0, ["140", "150"].includes(match[1]) ? 5 : 2);
+    return `${match[1]}/${prefix || "us"}.json`;
+  }
+
+  function readBundledFile(path) {
+    if (!bundledFiles.has(path)) {
+      // Bound memory while keeping the shared index and nearby profile shards warm.
+      if (bundledFiles.size >= 16) {
+        const oldest = [...bundledFiles.keys()].find((key) => key !== "manifest.json");
+        bundledFiles.delete(oldest);
+      }
+      bundledFiles.set(path, readJson(`data/census-profiles/${path}?v=${BUNDLE_VERSION}`)
+        .catch((error) => { bundledFiles.delete(path); throw error; }));
+    }
+    return bundledFiles.get(path);
+  }
+
+  function decodeProfile(geoid, requested, manifest, shard) {
+    if (shard?.version !== 1 || shard.release !== manifest.release.id || !shard.rows) {
+      throw new Error("Invalid saved Census profile data.");
+    }
+    const row = shard.rows[geoid];
+    if (!row) return null;
+    if (!Array.isArray(row) || typeof row[0] !== "string" || !row[0] || row.length !== manifest.tables.length + 1) {
+      throw new Error("Invalid saved Census profile record.");
+    }
+    const data = {};
+    const unavailableTables = [];
+    for (const table of requested) {
+      const index = manifest.tables.findIndex((item) => item.id === table);
+      const columns = manifest.tables[index].columns;
+      const values = row[index + 1];
+      if (values === null) { unavailableTables.push(table); continue; }
+      if (!Array.isArray(values) || values.length !== columns.length ||
+          values.some((value) => value !== null && (!Number.isFinite(value) || value < 0))) {
+        throw new Error("Invalid saved Census estimates.");
+      }
+      data[table] = { estimate: Object.fromEntries(columns.map((column, columnIndex) => [column, values[columnIndex]])) };
+    }
+    if (!Object.keys(data).length) return null;
+    return {
+      release: manifest.release, geography: { [geoid]: { name: row[0] } }, data: { [geoid]: data },
+      tables: {}, unavailableTables, source: { ...manifest.source, bundled: true }
+    };
+  }
+
+  async function loadBundledTables(geoid, tables) {
+    const path = shardFor(geoid);
+    if (!path) return null;
+    const manifest = await readBundledFile("manifest.json");
+    if (manifest?.version !== 1 || !manifest.release?.id || !Array.isArray(manifest.files) ||
+        !Array.isArray(manifest.tables) || manifest.tables.some((table) =>
+          !/^B\d{5}$/.test(table.id) || !Array.isArray(table.columns) || !table.columns.length ||
+          table.columns.some((column) => !new RegExp(`^${table.id}\\d{3}$`).test(column)))) {
+      bundledFiles.delete("manifest.json");
+      throw new Error("Invalid saved Census profile index.");
+    }
+    if (!manifest.files.includes(path) || tables.some((id) => !manifest.tables.some((table) => table.id === id))) return null;
+    try {
+      return decodeProfile(geoid, tables, manifest, await readBundledFile(path));
+    } catch (error) {
+      bundledFiles.delete(path);
+      throw error;
+    }
+  }
+
+  async function loadAvailableTables(geoid, tables) {
+    try {
+      const saved = await loadBundledTables(geoid, tables);
+      if (saved) return saved;
+    } catch { /* A missing or interrupted static download can still use the live service. */ }
+    return fetchTables(geoid, tables);
+  }
+
   function loadTables(geoid, tables) {
+    if (!shardFor(geoid)) return Promise.reject(new Error("Invalid Census geography identifier."));
     const key = `${geoid}:${tables.join(",")}`;
     if (!requests.has(key)) {
-      requests.set(key, fetchTables(geoid, tables).finally(() => requests.delete(key)));
+      requests.set(key, loadAvailableTables(geoid, tables).finally(() => requests.delete(key)));
     }
     return requests.get(key);
   }
 
-  const api = { readJson, loadTables };
+  const api = { readJson, loadTables, shardFor };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.CensusProfileSource = api;
 })(globalThis);

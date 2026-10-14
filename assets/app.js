@@ -1275,9 +1275,7 @@ const DETAIL_TABLES = [
   "B15003",
   "B16004",
   "B05002",
-  "B21001",
   "B03002",
-  "B08303",
   "B08013",
   "B08006"
 ];
@@ -6118,6 +6116,8 @@ function renderProfile(geoid, profile, extras = {}) {
       <h2>${escapeHtml(name)}</h2>
       <p class="profile-subtitle">${escapeHtml(translatedTypeLabel(type))} - ${escapeHtml(geoid)} - ${escapeHtml(release)}</p>
       ${profile.notice ? `<p class="stat-note" role="status">${escapeHtml(profile.notice)}</p>` : ""}
+      ${profile.detail.source?.bundled ? `<p class="stat-note">U.S. Census Bureau estimates (${escapeHtml(profile.detail.release.years)}), served with this map so profiles do not depend on the live Census Reporter API.</p>` : ""}
+      ${extras.notice ? `<p class="stat-note" role="status">${escapeHtml(extras.notice)}</p>` : ""}
       ${profile.detail.unavailableTables?.length ? `<p class="stat-note">Some statistics are not published for this geography and are shown as unavailable.</p>` : ""}
       <div class="headline-grid">
         ${stat("Population", number(population))}
@@ -6233,7 +6233,7 @@ function renderLoading(area) {
   elements.profile.innerHTML = `
     <div class="loading-state">
       <h2>${escapeHtml(area?.name || tr("Loading urban areas..."))}</h2>
-      <p>${escapeHtml(tr("Fetching Census Reporter profile data..."))}</p>
+      <p>${escapeHtml(tr("Loading Census profile data..."))}</p>
     </div>
   `;
 }
@@ -6241,9 +6241,11 @@ function renderLoading(area) {
 function renderError(geoid, error) {
   elements.profile.innerHTML = `
     <div class="error-state">
-      <h2>${escapeHtml(tr("Profile unavailable"))}</h2>
-      <p>${escapeHtml(tr("Census Reporter did not return profile data for {geoid}.", { geoid }))}</p>
-      <p class="stat-note">${escapeHtml(error.message)}</p>
+      <h2>${escapeHtml(tr("Profile could not load"))}</h2>
+      <p>${escapeHtml(tr("No saved profile could be loaded for {geoid}, and the live Census service did not return data.", { geoid }))}</p>
+      <p class="stat-note">${escapeHtml(error.status === 400 || error.status === 404
+        ? "This geography may not have data in the available ACS release."
+        : "Check your connection and retry. Temporary service failures do not mean this geography has no Census data.")}</p>
       <button id="retry-profile" type="button">Retry profile</button>
     </div>
   `;
@@ -6304,14 +6306,23 @@ async function selectArea(geoid, options = {}) {
 
   showSelectedGeometry(geoid, { fit: options.fit !== false });
 
+  let profile;
   try {
-    const profile = await loadProfile(geoid);
-    if (state.selectedGeoid !== geoid) return;
-    renderProfile(geoid, profile);
+    profile = await loadProfile(geoid);
+  } catch (error) {
+    if (state.selectedGeoid === geoid) renderError(geoid, error);
+    return;
+  }
+  if (state.selectedGeoid !== geoid) return;
+  renderProfile(geoid, profile);
+  try {
     const extras = await loadGeographyExtras(geoid, profile);
     if (state.selectedGeoid === geoid) renderProfile(geoid, profile, extras);
   } catch (error) {
-    if (state.selectedGeoid === geoid) renderError(geoid, error);
+    console.warn("Optional profile details failed to load", error);
+    if (state.selectedGeoid === geoid) {
+      renderProfile(geoid, profile, { notice: "Some optional details could not load. Census statistics remain available." });
+    }
   }
 }
 

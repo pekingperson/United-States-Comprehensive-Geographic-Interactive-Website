@@ -13,9 +13,10 @@ const batch = (tables) => ({
   geography: { [geoid]: { name: "43064" } }, tables: {}
 });
 
-function setup(fetch, timers = {}) {
+function setup(fetch, timers = {}, bundledFetch = async () => json({}, 404)) {
   const context = vm.createContext({ module: { exports: {} }, URLSearchParams, AbortController,
-    fetch, setTimeout, clearTimeout, ...timers });
+    fetch: (url, options) => String(url).startsWith("data/census-profiles/") ? bundledFetch(url, options) : fetch(url, options),
+    setTimeout, clearTimeout, ...timers });
   vm.runInContext(script, context);
   return context.module.exports;
 }
@@ -29,6 +30,89 @@ test("supported profile tables load in one request, with concurrent requests ded
   assert.equal(calls, 1);
   assert.equal(first, second);
   assert.equal(first.data[geoid].B01001.estimate.B01001001, 100);
+});
+
+const savedIndex = {
+  version: 1, release: { id: "acs2024_5yr", name: "ACS 2024 5-year", years: "2020-2024" },
+  source: { name: "U.S. Census Bureau", url: "https://www2.census.gov/" },
+  tables: [
+    { id: "B01001", columns: ["B01001001", "B01001002", "B01001026"] },
+    { id: "B19013", columns: ["B19013001"] },
+    { id: "B05002", columns: ["B05002001", "B05002013"] }
+  ], files: ["860/43.json"]
+};
+const savedShard = () => ({ version: 1, release: "acs2024_5yr", rows: {
+  [geoid]: ["ZCTA5 43064", [100, 40, 60], [80000], [100, 20]],
+  "86000US43065": ["ZCTA5 43065", [0, 0, 0], [null], null]
+} });
+const savedResponse = (url, shard = savedShard()) => json(url.includes("manifest.json") ? savedIndex : shard);
+
+test("bundled profiles load with every live service blocked and keep the correct ACS vintage", async () => {
+  for (const failure of [403, 429, 503, "Failed to fetch"]) {
+    let liveCalls = 0;
+    const files = [];
+    const api = setup(async () => { liveCalls += 1; throw new Error(String(failure)); }, {}, async (url) => {
+      files.push(url); return savedResponse(url);
+    });
+    const [first, second] = await Promise.all([
+      api.loadTables(geoid, ["B01001", "B19013"]), api.loadTables(geoid, ["B01001", "B05002"])
+    ]);
+    assert.equal(liveCalls, 0);
+    assert.equal(files.length, 2, "one shared manifest and one shared shard");
+    assert.equal(first.data[geoid].B01001.estimate.B01001026, 60);
+    assert.equal(first.data[geoid].B19013.estimate.B19013001, 80000);
+    assert.equal(second.data[geoid].B05002.estimate.B05002013, 20);
+    assert.equal(first.release.id, "acs2024_5yr");
+    assert.equal(first.source.bundled, true);
+    assert.equal(first.geography[geoid].name, "ZCTA5 43064");
+  }
+});
+
+test("unpublished and suppressed saved data stay unavailable, while real zero estimates stay zero", async () => {
+  const api = setup(async () => { throw new Error("Live API must not be used"); }, {}, (url) => savedResponse(url));
+  const result = await api.loadTables("86000US43065", ["B01001", "B19013", "B05002"]);
+  const data = result.data["86000US43065"];
+  assert.equal(data.B01001.estimate.B01001001, 0);
+  assert.equal(data.B19013.estimate.B19013001, null);
+  assert.equal(data.B05002, undefined);
+  assert.equal(result.unavailableTables.join(","), "B05002");
+});
+
+test("missing, corrupt, and wrong-vintage saved files fall back to live data without mixing releases", async () => {
+  for (const corrupt of [
+    { version: 1, release: "acs2023_5yr", rows: savedShard().rows },
+    { version: 1, release: "acs2024_5yr", rows: { [geoid]: ["Bad", [-666666666, 40, 60], [80000], null] } },
+    { version: 1, release: "acs2024_5yr", rows: {} },
+    { version: 1, release: "acs2024_5yr", rows: { [geoid]: ["Truncated"] } }
+  ]) {
+    let liveCalls = 0;
+    const api = setup(async () => { liveCalls += 1; return json(batch(["B01001"])); }, {},
+      async (url) => savedResponse(url, corrupt));
+    const result = await api.loadTables(geoid, ["B01001"]);
+    assert.equal(liveCalls, 1);
+    assert.equal(result.data[geoid].B01001.estimate.B01001001, 100);
+    assert.equal(result.source, undefined);
+  }
+});
+
+test("an interrupted saved shard is evicted and can be retried, without caching an empty profile", async () => {
+  let broken = true;
+  const api = setup(async () => json({}, 403), {}, async (url) => {
+    if (broken && !url.includes("manifest.json")) throw new TypeError("Failed to fetch");
+    return savedResponse(url);
+  });
+  await assert.rejects(api.loadTables(geoid, ["B01001"]));
+  broken = false;
+  const result = await api.loadTables(geoid, ["B01001"]);
+  assert.equal(result.source.bundled, true);
+});
+
+test("geography identifiers cannot traverse saved files and legislative letters are preserved", async () => {
+  const api = setup(async () => { throw new Error("Should not fetch"); });
+  assert.equal(api.shardFor("01000US"), "010/us.json");
+  assert.equal(api.shardFor("15000US391590506012"), "150/39159.json");
+  assert.equal(api.shardFor("62000US500A1"), "620/50.json");
+  await assert.rejects(api.loadTables("../../profile", ["B01001"]), /Invalid Census geography/);
 });
 
 test("unpublished tables do not discard available statistics or mix ACS vintages", async () => {
@@ -119,4 +203,26 @@ test("ordinary urban areas use saved boundaries, not an unnecessary remote reque
   });
   vm.runInContext(app.slice(app.indexOf("async function loadDetailedGeometry("), app.indexOf("function fitGeoidFeature(")), context);
   assert.equal(await context.loadDetailedGeometry("40000US80389"), expected);
+});
+
+test("optional profile errors never replace working Census statistics with a failure screen", async () => {
+  const rendered = [];
+  let failures = 0;
+  const profile = { metrics: { population: 100 } };
+  const context = vm.createContext({
+    state: { activeGeography: "place" }, window: { location: {} }, console: { warn() {} },
+    geographyForGeoid: () => ({ id: "place" }), isGeographyAllowed: () => true,
+    exampleForType: () => null, areaByGeoid: () => null,
+    selectedSource: { clear() {} }, urbanLayer: { changed() {} }, renderList() {}, renderLoading() {},
+    projectLayer: { changed() {} }, publicHousingLayer: { changed() {} },
+    showSelectedGeometry() {}, loadProfile: async () => profile,
+    renderProfile: (...args) => rendered.push(args), renderError: () => { failures += 1; },
+    loadGeographyExtras: async () => { throw new TypeError("Failed to fetch"); }
+  });
+  vm.runInContext(app.slice(app.indexOf("async function selectArea("), app.indexOf("async function fitSelectedArea(")), context);
+  await context.selectArea(geoid, { skipHash: true });
+  assert.equal(failures, 0);
+  assert.equal(rendered.length, 2);
+  assert.equal(rendered[1][1], profile);
+  assert.match(rendered[1][2].notice, /Census statistics remain available/);
 });
