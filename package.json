@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "Interactive United States geography viewer combining Census Reporter profiles, Census Dots tiles, Opportunity Atlas overlays, and policy overlays.",
   "scripts": {
-    "test:map": "node --test tests/census-boundary-source.test.cjs tests/census-profile-source.test.cjs tests/ancestry-categories.test.cjs",
+    "test:map": "node --test tests/census-boundary-source.test.cjs tests/census-profile-source.test.cjs tests/ancestry-categories.test.cjs tests/census-race-history.test.cjs",
+    "census-history-data": "python scripts/generate-census-race-history.py",
+    "test:census-importer": "python -m unittest discover -s tests -p test_census_history_import.py",
     "ancestry-data": "node --use-system-ca scripts/generate-ancestry-overlay.mjs",
     "build": "node scripts/build-static.mjs",
     "data": "node --use-system-ca scripts/generate-data.mjs && python scripts/apply-urban-merges.py",

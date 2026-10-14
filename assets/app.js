@@ -1833,6 +1833,7 @@ const state = {
   selectedGeoid: null,
   selectedName: "",
   profileCache: new Map(),
+  raceHistory: new Map(),
   geometryCache: new Map(),
   schoolRatings: null,
   liveSchoolRatingsCache: new Map(),
@@ -3808,7 +3809,7 @@ function stat(label, value, note = "") {
   `;
 }
 
-function raceChart(race) {
+function currentRaceRows(race) {
   const rows = Object.entries(race || {})
     .filter(([, value]) => value != null)
     .sort((a, b) => b[1] - a[1])
@@ -3826,12 +3827,112 @@ function raceChart(race) {
     )
     .join("");
 
+  return rows || `<p class="stat-note">${escapeHtml(tr("Not available"))}</p>`;
+}
+
+function raceHistoryState(geoid) {
+  if (!state.raceHistory.has(geoid)) {
+    state.raceHistory.set(geoid, { selected: "current", records: [], status: "idle" });
+  }
+  return state.raceHistory.get(geoid);
+}
+
+function historicalRaceRows(rows) {
+  return rows.map((row) => `
+    <div class="bar-row historical-race-row">
+      <span>${escapeHtml(row.label)}</span>
+      <span class="bar-track" aria-hidden="true"><span class="bar-fill" style="width:${Math.max(0, Math.min(row.share || 0, 100))}%;background:${row.color}"></span></span>
+      <span class="bar-value">${pct(row.share)}<small>${number(row.count)}</small></span>
+    </div>`).join("");
+}
+
+function historicalRaceBody(record) {
+  const source = CensusRaceHistory.source(record);
+  const ethnicity = CensusRaceHistory.ethnicityRows(record);
   return `
-    <article class="mini-chart">
-      <span class="chart-label">${escapeHtml(tr("Race & ethnicity"))}</span>
-      ${rows || `<p class="stat-note">${escapeHtml(tr("Not available"))}</p>`}
-    </article>
-  `;
+    <p class="race-census-total">${number(record.total)} people counted in ${record.year}</p>
+    <p class="stat-note">Race totals include Hispanic residents. Hispanic origin is shown separately below.</p>
+    ${historicalRaceRows(CensusRaceHistory.rows(record))}
+    <div class="race-ethnicity-detail">
+      <span class="stat-label">Ethnicity</span>
+      ${ethnicity.length ? historicalRaceRows(ethnicity) : '<p class="stat-note">Hispanic-origin data is not available in this historical table.</p>'}
+      ${record.meta?.ethnicitySample ? '<p class="stat-note">Hispanic origin and non-Hispanic White figures are estimates from the 5% census sample; race totals above are full counts. Percentages use the sample universe or the published sample percentages.</p>' : ""}
+    </div>
+    <p class="stat-note">${record.year < 2000 ? "The modern ‘two or more races’ category began in 2000. " : ""}Categories and geographic boundaries are those used by the source for this census, not a reconstruction of today's map. Missing categories are not treated as zero.</p>
+    ${record.year < 1970 ? '<p class="stat-note">Early censuses excluded some populations and used different classifications. Hispanic-origin figures, where shown, use the source\'s historical definition. See the table notes.</p>' : ""}
+    ${(record.meta?.notes || []).map((note) => `<p class="stat-note">${escapeHtml(note)}</p>`).join("")}
+    <a class="race-history-source" href="${escapeHtml(source.url)}" target="_blank" rel="noreferrer">${escapeHtml(source.label)} ↗</a>`;
+}
+
+function raceChart(geoid, profile) {
+  const history = raceHistoryState(geoid);
+  const periods = CensusRaceHistory.periods(history.records);
+  const selectedIndex = periods.indexOf(history.selected);
+  const record = history.records.find((item) => String(item.year) === history.selected);
+  const currentLabel = `${profile.detail.release?.name || "Current ACS"} (estimate)`;
+  const isMerged = Boolean(areaByGeoid(geoid)?.isMergedUrbanArea);
+  let status = "";
+  if (history.status === "idle" || history.status === "loading") status = "Loading historical censuses…";
+  else if (history.status === "error") status = 'Historical data could not load. <button type="button" data-race-retry>Retry</button>';
+  else if (!history.records.length) status = isMerged
+    ? "Historical counts are not combined for this custom merged urban boundary."
+    : "No matching historical record is included for this geography. Historical coverage varies by boundary type and census.";
+  else status = `${history.records.length} archived censuses available (${history.records[0].year}–${history.records.at(-1).year}). Coverage varies by geography; missing years are not zero.`;
+  return `<article class="mini-chart race-history-chart">
+    <span class="chart-label">${escapeHtml(tr("Race & ethnicity"))}</span>
+    <div class="race-year-controls" role="group" aria-label="Race and ethnicity census year">
+      <button type="button" data-race-step="-1" aria-label="Previous census" title="Previous census" ${selectedIndex <= 0 ? "disabled" : ""}>←</button>
+      <select aria-label="Race and ethnicity census" data-race-year>
+        ${periods.map((period) => `<option value="${period}" ${history.selected === period ? "selected" : ""}>${escapeHtml(period === "current" ? currentLabel : `${period} Census`)}</option>`).join("")}
+      </select>
+      <button type="button" data-race-step="1" aria-label="Next census" title="Next census" ${selectedIndex >= periods.length - 1 ? "disabled" : ""}>→</button>
+    </div>
+    <p class="stat-note race-section-scope">Only this section changes. Other profile statistics remain on the current ACS release.</p>
+    <div class="race-history-body" aria-live="polite" aria-atomic="true">
+      ${record ? historicalRaceBody(record) : `<p class="stat-note">Hispanic residents are shown separately from the non-Hispanic race categories.</p>${currentRaceRows(profile.metrics.race)}`}
+    </div>
+    <p class="stat-note race-history-status" role="status">${status}</p>
+  </article>`;
+}
+
+function bindRaceHistory(geoid, profile) {
+  const section = document.querySelector("#profile-race");
+  if (!section || section.dataset.geoid !== geoid) return;
+  section.querySelectorAll("[data-race-step]").forEach((button) => button.addEventListener("click", () => {
+    const history = raceHistoryState(geoid);
+    history.selected = CensusRaceHistory.adjacent(history.records, history.selected, Number(button.dataset.raceStep));
+    refreshRaceHistory(geoid, profile, `[data-race-step="${button.dataset.raceStep}"]`);
+  }));
+  section.querySelector("[data-race-year]")?.addEventListener("change", (event) => {
+    raceHistoryState(geoid).selected = event.target.value;
+    refreshRaceHistory(geoid, profile, "[data-race-year]");
+  });
+  section.querySelector("[data-race-retry]")?.addEventListener("click", () => loadRaceHistory(geoid, profile));
+}
+
+function refreshRaceHistory(geoid, profile, focusSelector) {
+  const section = document.querySelector("#profile-race");
+  if (state.selectedGeoid !== geoid || section?.dataset.geoid !== geoid) return;
+  section.innerHTML = raceChart(geoid, profile);
+  bindRaceHistory(geoid, profile);
+  if (focusSelector) {
+    const target = section.querySelector(focusSelector);
+    (target?.disabled ? section.querySelector("[data-race-year]") : target)?.focus({ preventScroll: true });
+  }
+}
+
+async function loadRaceHistory(geoid, profile) {
+  const history = raceHistoryState(geoid);
+  if (history.status === "loading" || history.status === "ready") return;
+  history.status = "loading";
+  refreshRaceHistory(geoid, profile);
+  try {
+    history.records = areaByGeoid(geoid)?.isMergedUrbanArea ? [] : await CensusRaceHistory.load(geoid);
+    history.status = "ready";
+  } catch {
+    history.status = "error";
+  }
+  refreshRaceHistory(geoid, profile);
 }
 
 function normalizeParty(party) {
@@ -6039,8 +6140,8 @@ function renderProfile(geoid, profile, extras = {}) {
       </div>
     </section>
 
-    <section class="section">
-      ${raceChart(metrics.race)}
+    <section class="section" id="profile-race" data-geoid="${escapeHtml(geoid)}">
+      ${raceChart(geoid, profile)}
     </section>
 
     ${geographyExtraSection(geoid, profile, extras)}
@@ -6084,6 +6185,8 @@ function renderProfile(geoid, profile, extras = {}) {
   document.querySelector("#show-full-profile")?.addEventListener("click", () => {
     document.querySelector(".full-profile-section")?.scrollIntoView({ behavior: "smooth" });
   });
+  bindRaceHistory(geoid, profile);
+  loadRaceHistory(geoid, profile);
 }
 
 function renderHomeProfile() {

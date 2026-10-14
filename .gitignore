@@ -7,3 +7,5 @@ dist/
 coverage/
 .DS_Store
 Thumbs.db
+reports/census-history-cache/
+reports/census-import-deps/

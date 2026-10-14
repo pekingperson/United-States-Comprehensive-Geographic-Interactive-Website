@@ -922,6 +922,73 @@ body.panel-resizing #map {
   text-align: right;
 }
 
+.race-year-controls {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.race-year-controls button,
+.race-year-controls select {
+  min-height: 36px;
+  min-width: 0;
+  margin: 0;
+}
+
+.race-year-controls button {
+  padding: 4px;
+  font-size: 20px;
+}
+
+.race-year-controls button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.race-year-controls select {
+  padding: 6px;
+  font-size: 12px;
+}
+
+.race-census-total {
+  margin: 12px 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.historical-race-row {
+  grid-template-columns: minmax(100px, 1.2fr) minmax(20px, 1fr) minmax(62px, auto);
+}
+
+.historical-race-row .bar-value small {
+  display: block;
+  margin-top: 2px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.race-ethnicity-detail {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.race-history-chart .stat-note {
+  line-height: 1.45;
+}
+
+.race-history-source {
+  display: inline-block;
+  margin-top: 7px;
+  font-size: 11px;
+}
+
+.race-history-status:empty {
+  display: none;
+}
+
 .source-note {
   padding: 12px 18px 18px;
   color: var(--muted);
